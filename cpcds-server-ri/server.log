@@ -1,0 +1,41 @@
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database <init>
+INFO: JDBC: jdbc:h2:./target/database/oauth;DB_CLOSE_DELAY=-1
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database <init>
+INFO: BEGIN TRANSACTION;
+
+    CREATE TABLE IF NOT EXISTS Users (
+        "username" varchar PRIMARY KEY,
+        "patient_id" varchar NOT NULL,
+        "password" varchar NOT NULL,
+        "refresh_token" varchar DEFAULT NULL,
+        "timestamp" datetime DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS Clients (
+        "id" varchar PRIMARY KEY,
+        "secret" varchar NOT NULL,
+        "redirect" varchar NOT NULL,
+        "timestamp" datetime DEFAULT CURRENT_TIMESTAMP
+    );
+
+COMMIT;
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Clients(1954953964)
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Clients(2086207545)
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User Patient1(Patient1): password($2a$10$rav6XTrIHx1GwnwnbGayseuYSFpmH8q3hlRDBRyC1smKj9TJo5oNG))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User PatientEx1(PatientEx1): password($2a$10$73zBseJOQPzJeiY4TP/JLemUFdi3whs3an5/3vh57O0a4tzOjRTK.))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User admin(admin): password($2a$10$aNxbn0sgr/WbSdDHBHZZ1exF2rTxu03FrA3rFiswtKPmu9AOm5Roi))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User Patient2(026f2676-d635-47b9-af1e-95de31cda9b1): password($2a$10$bCTW4KCJyXPrhfY7dzuCO.q5ZsksedGd/eiw2qk2Rif/nJqsimtia))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User Patient3(14c20e78-610b-405b-aad1-9c8f6109152c): password($2a$10$P/iRaK7XEFBwICN84hZdj.RwSAvVDgVquw2aIDYiuga4LAMxrwPBG))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User Patient4(6da541e2-62f4-42a7-8009-23e2d97116df): password($2a$10$OZ4.DBtnGSX/IgepEW/2cuqa8V/NFdrbczbaWYL97Ze6t55Xw6jj.))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.Database write
+INFO: Database::write Users(User Patient5(ec19f75c-c674-478c-8916-8acb2f1b0a68): password($2a$10$/SEBVUpMzr1MxB/Q8SP9iO7DD4JpQEycWE6eJ1edOaAZl9/GcFupW))
+Dec 02, 2021 3:15:01 PM ca.uhn.fhir.jpa.starter.authorization.OauthEndpointController postConstruct
+INFO: Authorization Endpoint Controller created.
