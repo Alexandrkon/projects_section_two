@@ -1,0 +1,940 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package org.hl7.fhir.igtools.publisher;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>/*-<a name="line.3"></a>
+<span class="sourceLineNo">004</span> * #%L<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * org.hl7.fhir.publisher.core<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * %%<a name="line.6"></a>
+<span class="sourceLineNo">007</span> * Copyright (C) 2014 - 2019 Health Level 7<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * %%<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * Licensed under the Apache License, Version 2.0 (the "License");<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * you may not use this file except in compliance with the License.<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * You may obtain a copy of the License at<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * <a name="line.12"></a>
+<span class="sourceLineNo">013</span> *      http://www.apache.org/licenses/LICENSE-2.0<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * <a name="line.14"></a>
+<span class="sourceLineNo">015</span> * Unless required by applicable law or agreed to in writing, software<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * distributed under the License is distributed on an "AS IS" BASIS,<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * See the License for the specific language governing permissions and<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * limitations under the License.<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * #L%<a name="line.20"></a>
+<span class="sourceLineNo">021</span> */<a name="line.21"></a>
+<span class="sourceLineNo">022</span><a name="line.22"></a>
+<span class="sourceLineNo">023</span><a name="line.23"></a>
+<span class="sourceLineNo">024</span>import java.io.File;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>import java.io.FileInputStream;<a name="line.25"></a>
+<span class="sourceLineNo">026</span>import java.io.FileOutputStream;<a name="line.26"></a>
+<span class="sourceLineNo">027</span>import java.io.IOException;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>import java.io.InputStream;<a name="line.28"></a>
+<span class="sourceLineNo">029</span>import java.net.URL;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>import java.net.URLConnection;<a name="line.30"></a>
+<span class="sourceLineNo">031</span>import java.util.ArrayList;<a name="line.31"></a>
+<span class="sourceLineNo">032</span>import java.util.Collections;<a name="line.32"></a>
+<span class="sourceLineNo">033</span>import java.util.HashMap;<a name="line.33"></a>
+<span class="sourceLineNo">034</span>import java.util.HashSet;<a name="line.34"></a>
+<span class="sourceLineNo">035</span>import java.util.List;<a name="line.35"></a>
+<span class="sourceLineNo">036</span>import java.util.Map;<a name="line.36"></a>
+<span class="sourceLineNo">037</span>import java.util.Set;<a name="line.37"></a>
+<span class="sourceLineNo">038</span><a name="line.38"></a>
+<span class="sourceLineNo">039</span>import org.hl7.fhir.exceptions.FHIRFormatError;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>import org.hl7.fhir.r5.context.IWorkerContext.ILoggingService;<a name="line.40"></a>
+<span class="sourceLineNo">041</span>import org.hl7.fhir.r5.context.IWorkerContext.ILoggingService.LogCategory;<a name="line.41"></a>
+<span class="sourceLineNo">042</span>import org.hl7.fhir.utilities.TextFile;<a name="line.42"></a>
+<span class="sourceLineNo">043</span>import org.hl7.fhir.utilities.Utilities;<a name="line.43"></a>
+<span class="sourceLineNo">044</span>import org.hl7.fhir.utilities.npm.FilesystemPackageCacheManager;<a name="line.44"></a>
+<span class="sourceLineNo">045</span>import org.hl7.fhir.utilities.npm.NpmPackage;<a name="line.45"></a>
+<span class="sourceLineNo">046</span>import org.hl7.fhir.utilities.npm.PackageHacker;<a name="line.46"></a>
+<span class="sourceLineNo">047</span>import org.hl7.fhir.utilities.validation.ValidationMessage;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>import org.hl7.fhir.utilities.validation.ValidationMessage.IssueSeverity;<a name="line.48"></a>
+<span class="sourceLineNo">049</span>import org.hl7.fhir.utilities.validation.ValidationMessage.IssueType;<a name="line.49"></a>
+<span class="sourceLineNo">050</span>import org.hl7.fhir.utilities.validation.ValidationMessage.Source;<a name="line.50"></a>
+<span class="sourceLineNo">051</span>import org.hl7.fhir.utilities.xhtml.NodeType;<a name="line.51"></a>
+<span class="sourceLineNo">052</span>import org.hl7.fhir.utilities.xhtml.XhtmlComposer;<a name="line.52"></a>
+<span class="sourceLineNo">053</span>import org.hl7.fhir.utilities.xhtml.XhtmlNode;<a name="line.53"></a>
+<span class="sourceLineNo">054</span>import org.hl7.fhir.utilities.xhtml.XhtmlNode.Location;<a name="line.54"></a>
+<span class="sourceLineNo">055</span>import org.hl7.fhir.utilities.xhtml.XhtmlParser;<a name="line.55"></a>
+<span class="sourceLineNo">056</span><a name="line.56"></a>
+<span class="sourceLineNo">057</span>import com.google.gson.JsonObject;<a name="line.57"></a>
+<span class="sourceLineNo">058</span><a name="line.58"></a>
+<span class="sourceLineNo">059</span>//import org.owasp.html.Handler;<a name="line.59"></a>
+<span class="sourceLineNo">060</span>//import org.owasp.html.HtmlChangeListener;<a name="line.60"></a>
+<span class="sourceLineNo">061</span>//import org.owasp.html.HtmlPolicyBuilder;<a name="line.61"></a>
+<span class="sourceLineNo">062</span>//import org.owasp.html.HtmlSanitizer;<a name="line.62"></a>
+<span class="sourceLineNo">063</span>//import org.owasp.html.HtmlStreamEventReceiver;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>//import org.owasp.html.HtmlStreamRenderer;<a name="line.64"></a>
+<span class="sourceLineNo">065</span>//import org.owasp.html.PolicyFactory;<a name="line.65"></a>
+<span class="sourceLineNo">066</span>//import org.owasp.html.Sanitizers;<a name="line.66"></a>
+<span class="sourceLineNo">067</span><a name="line.67"></a>
+<span class="sourceLineNo">068</span>public class HTLMLInspector {<a name="line.68"></a>
+<span class="sourceLineNo">069</span><a name="line.69"></a>
+<span class="sourceLineNo">070</span>  <a name="line.70"></a>
+<span class="sourceLineNo">071</span>  public enum NodeChangeType {<a name="line.71"></a>
+<span class="sourceLineNo">072</span>    NONE, SELF, CHILD<a name="line.72"></a>
+<span class="sourceLineNo">073</span>  }<a name="line.73"></a>
+<span class="sourceLineNo">074</span><a name="line.74"></a>
+<span class="sourceLineNo">075</span>  public class HtmlChangeListenerContext {<a name="line.75"></a>
+<span class="sourceLineNo">076</span><a name="line.76"></a>
+<span class="sourceLineNo">077</span>    private List&lt;ValidationMessage&gt; messages;<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    private String source;<a name="line.78"></a>
+<span class="sourceLineNo">079</span><a name="line.79"></a>
+<span class="sourceLineNo">080</span>    public HtmlChangeListenerContext(List&lt;ValidationMessage&gt; messages, String source) {<a name="line.80"></a>
+<span class="sourceLineNo">081</span>      this.messages = messages;<a name="line.81"></a>
+<span class="sourceLineNo">082</span>      this.source = source;<a name="line.82"></a>
+<span class="sourceLineNo">083</span>    }<a name="line.83"></a>
+<span class="sourceLineNo">084</span>  }<a name="line.84"></a>
+<span class="sourceLineNo">085</span><a name="line.85"></a>
+<span class="sourceLineNo">086</span>//  public class HtmlSanitizerObserver implements HtmlChangeListener&lt;HtmlChangeListenerContext&gt; {<a name="line.86"></a>
+<span class="sourceLineNo">087</span>//<a name="line.87"></a>
+<span class="sourceLineNo">088</span>//    @Override<a name="line.88"></a>
+<span class="sourceLineNo">089</span>//    public void discardedAttributes(HtmlChangeListenerContext ctxt, String elementName, String... attributeNames) {<a name="line.89"></a>
+<span class="sourceLineNo">090</span>//      ctxt.messages.add(new ValidationMessage(Source.Publisher, IssueType.STRUCTURE, ctxt.source, "the element "+elementName+" attributes failed security testing", IssueSeverity.ERROR));<a name="line.90"></a>
+<span class="sourceLineNo">091</span>//    }<a name="line.91"></a>
+<span class="sourceLineNo">092</span>//<a name="line.92"></a>
+<span class="sourceLineNo">093</span>//    @Override<a name="line.93"></a>
+<span class="sourceLineNo">094</span>//    public void discardedTag(HtmlChangeListenerContext ctxt, String elementName) {<a name="line.94"></a>
+<span class="sourceLineNo">095</span>//      ctxt.messages.add(new ValidationMessage(Source.Publisher, IssueType.STRUCTURE, ctxt.source, "the element "+elementName+" failed security testing", IssueSeverity.ERROR));<a name="line.95"></a>
+<span class="sourceLineNo">096</span>//    }<a name="line.96"></a>
+<span class="sourceLineNo">097</span>//  }<a name="line.97"></a>
+<span class="sourceLineNo">098</span><a name="line.98"></a>
+<span class="sourceLineNo">099</span>  public class StringPair {<a name="line.99"></a>
+<span class="sourceLineNo">100</span>    private String source;<a name="line.100"></a>
+<span class="sourceLineNo">101</span>    private String link;<a name="line.101"></a>
+<span class="sourceLineNo">102</span>    private String text;<a name="line.102"></a>
+<span class="sourceLineNo">103</span>    public StringPair(String source, String link, String text) {<a name="line.103"></a>
+<span class="sourceLineNo">104</span>      super();<a name="line.104"></a>
+<span class="sourceLineNo">105</span>      this.source = source;<a name="line.105"></a>
+<span class="sourceLineNo">106</span>      this.link = link;<a name="line.106"></a>
+<span class="sourceLineNo">107</span>      this.text = text;<a name="line.107"></a>
+<span class="sourceLineNo">108</span>    }<a name="line.108"></a>
+<span class="sourceLineNo">109</span>  }<a name="line.109"></a>
+<span class="sourceLineNo">110</span><a name="line.110"></a>
+<span class="sourceLineNo">111</span>  public class LoadedFile {<a name="line.111"></a>
+<span class="sourceLineNo">112</span>    private String filename;<a name="line.112"></a>
+<span class="sourceLineNo">113</span>    private long lastModified;<a name="line.113"></a>
+<span class="sourceLineNo">114</span>    private int iteration;<a name="line.114"></a>
+<span class="sourceLineNo">115</span>    private Set&lt;String&gt; targets = new HashSet&lt;String&gt;();<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    private Boolean hl7State;<a name="line.116"></a>
+<span class="sourceLineNo">117</span>    private boolean exempt;<a name="line.117"></a>
+<span class="sourceLineNo">118</span>    private String path;<a name="line.118"></a>
+<span class="sourceLineNo">119</span>    private boolean hasXhtml;<a name="line.119"></a>
+<span class="sourceLineNo">120</span>    private int id = 0;<a name="line.120"></a>
+<span class="sourceLineNo">121</span><a name="line.121"></a>
+<span class="sourceLineNo">122</span>    public LoadedFile(String filename, String path, long lastModified, int iteration, Boolean hl7State, boolean exempt, boolean hasXhtml) {<a name="line.122"></a>
+<span class="sourceLineNo">123</span>      this.filename = filename;<a name="line.123"></a>
+<span class="sourceLineNo">124</span>      this.lastModified = lastModified;<a name="line.124"></a>
+<span class="sourceLineNo">125</span>      this.iteration = iteration;<a name="line.125"></a>
+<span class="sourceLineNo">126</span>      this.hl7State = hl7State;<a name="line.126"></a>
+<span class="sourceLineNo">127</span>      this.path = path;<a name="line.127"></a>
+<span class="sourceLineNo">128</span>      this.exempt = exempt;<a name="line.128"></a>
+<span class="sourceLineNo">129</span>      this.hasXhtml = hasXhtml;<a name="line.129"></a>
+<span class="sourceLineNo">130</span>    }<a name="line.130"></a>
+<span class="sourceLineNo">131</span><a name="line.131"></a>
+<span class="sourceLineNo">132</span>    public long getLastModified() {<a name="line.132"></a>
+<span class="sourceLineNo">133</span>      return lastModified;<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    }<a name="line.134"></a>
+<span class="sourceLineNo">135</span><a name="line.135"></a>
+<span class="sourceLineNo">136</span>    public int getIteration() {<a name="line.136"></a>
+<span class="sourceLineNo">137</span>      return iteration;<a name="line.137"></a>
+<span class="sourceLineNo">138</span>    }<a name="line.138"></a>
+<span class="sourceLineNo">139</span><a name="line.139"></a>
+<span class="sourceLineNo">140</span>    public void setIteration(int iteration) {<a name="line.140"></a>
+<span class="sourceLineNo">141</span>      this.iteration = iteration;<a name="line.141"></a>
+<span class="sourceLineNo">142</span>    }<a name="line.142"></a>
+<span class="sourceLineNo">143</span><a name="line.143"></a>
+<span class="sourceLineNo">144</span>    public boolean isExempt() {<a name="line.144"></a>
+<span class="sourceLineNo">145</span>      return exempt;<a name="line.145"></a>
+<span class="sourceLineNo">146</span>    }<a name="line.146"></a>
+<span class="sourceLineNo">147</span><a name="line.147"></a>
+<span class="sourceLineNo">148</span>    public Set&lt;String&gt; getTargets() {<a name="line.148"></a>
+<span class="sourceLineNo">149</span>      return targets;<a name="line.149"></a>
+<span class="sourceLineNo">150</span>    }<a name="line.150"></a>
+<span class="sourceLineNo">151</span><a name="line.151"></a>
+<span class="sourceLineNo">152</span>    public String getFilename() {<a name="line.152"></a>
+<span class="sourceLineNo">153</span>      return filename;<a name="line.153"></a>
+<span class="sourceLineNo">154</span>    }<a name="line.154"></a>
+<span class="sourceLineNo">155</span><a name="line.155"></a>
+<span class="sourceLineNo">156</span>    public Boolean getHl7State() {<a name="line.156"></a>
+<span class="sourceLineNo">157</span>      return hl7State;<a name="line.157"></a>
+<span class="sourceLineNo">158</span>    }<a name="line.158"></a>
+<span class="sourceLineNo">159</span><a name="line.159"></a>
+<span class="sourceLineNo">160</span>    public boolean isHasXhtml() {<a name="line.160"></a>
+<span class="sourceLineNo">161</span>      return hasXhtml;<a name="line.161"></a>
+<span class="sourceLineNo">162</span>    }<a name="line.162"></a>
+<span class="sourceLineNo">163</span><a name="line.163"></a>
+<span class="sourceLineNo">164</span>    public String getNextId() {<a name="line.164"></a>
+<span class="sourceLineNo">165</span>      id++;<a name="line.165"></a>
+<span class="sourceLineNo">166</span>      return Integer.toString(id );<a name="line.166"></a>
+<span class="sourceLineNo">167</span>    }<a name="line.167"></a>
+<span class="sourceLineNo">168</span>    <a name="line.168"></a>
+<span class="sourceLineNo">169</span>  }<a name="line.169"></a>
+<span class="sourceLineNo">170</span><a name="line.170"></a>
+<span class="sourceLineNo">171</span>  private static final String RELEASE_HTML_MARKER = "&lt;!--ReleaseHeader--&gt;&lt;p id=\"publish-box\"&gt;Publish Box goes here&lt;/p&gt;&lt;!--EndReleaseHeader--&gt;";<a name="line.171"></a>
+<span class="sourceLineNo">172</span>  private static final String START_HTML_MARKER = "&lt;!--ReleaseHeader--&gt;&lt;p id=\"publish-box\"&gt;";<a name="line.172"></a>
+<span class="sourceLineNo">173</span>  private static final String END_HTML_MARKER = "&lt;/p&gt;&lt;!--EndReleaseHeader--&gt;";<a name="line.173"></a>
+<span class="sourceLineNo">174</span><a name="line.174"></a>
+<span class="sourceLineNo">175</span>  private boolean strict;<a name="line.175"></a>
+<span class="sourceLineNo">176</span>  private String rootFolder;<a name="line.176"></a>
+<span class="sourceLineNo">177</span>  private String altRootFolder;<a name="line.177"></a>
+<span class="sourceLineNo">178</span>  private List&lt;SpecMapManager&gt; specs;<a name="line.178"></a>
+<span class="sourceLineNo">179</span>  private Map&lt;String, LoadedFile&gt; cache = new HashMap&lt;String, LoadedFile&gt;();<a name="line.179"></a>
+<span class="sourceLineNo">180</span>  private int iteration = 0;<a name="line.180"></a>
+<span class="sourceLineNo">181</span>  private List&lt;StringPair&gt; otherlinks = new ArrayList&lt;StringPair&gt;();<a name="line.181"></a>
+<span class="sourceLineNo">182</span>  private int links;<a name="line.182"></a>
+<span class="sourceLineNo">183</span>  private List&lt;String&gt; manual = new ArrayList&lt;String&gt;(); // pages that will be provided manually when published, so allowed to be broken links<a name="line.183"></a>
+<span class="sourceLineNo">184</span>  private ILoggingService log;<a name="line.184"></a>
+<span class="sourceLineNo">185</span>  private boolean forHL7;<a name="line.185"></a>
+<span class="sourceLineNo">186</span>  private boolean requirePublishBox;<a name="line.186"></a>
+<span class="sourceLineNo">187</span>  private List&lt;String&gt; igs;<a name="line.187"></a>
+<span class="sourceLineNo">188</span>  private FilesystemPackageCacheManager pcm;<a name="line.188"></a>
+<span class="sourceLineNo">189</span>  private Map&lt;String, SpecMapManager&gt; otherSpecs = new HashMap&lt;String, SpecMapManager&gt;();<a name="line.189"></a>
+<span class="sourceLineNo">190</span>  private Map&lt;String, String&gt; specList = new HashMap&lt;&gt;();<a name="line.190"></a>
+<span class="sourceLineNo">191</span>  private List&lt;String&gt; errorPackages = new ArrayList&lt;&gt;();<a name="line.191"></a>
+<span class="sourceLineNo">192</span>  private String canonical;<a name="line.192"></a>
+<span class="sourceLineNo">193</span><a name="line.193"></a>
+<span class="sourceLineNo">194</span>  private String statusText;<a name="line.194"></a>
+<span class="sourceLineNo">195</span>  private List&lt;String&gt; exemptHtmlPatterns = new ArrayList&lt;&gt;();<a name="line.195"></a>
+<span class="sourceLineNo">196</span>  private boolean missingPublishBox;<a name="line.196"></a>
+<span class="sourceLineNo">197</span>  private List&lt;String&gt; missingPublishBoxList = new ArrayList&lt;&gt;();<a name="line.197"></a>
+<span class="sourceLineNo">198</span>  private Set&lt;String&gt; exceptions = new HashSet&lt;&gt;();<a name="line.198"></a>
+<span class="sourceLineNo">199</span>  private boolean referencesValidatorPack;<a name="line.199"></a>
+<span class="sourceLineNo">200</span><a name="line.200"></a>
+<span class="sourceLineNo">201</span>  public HTLMLInspector(String rootFolder, List&lt;SpecMapManager&gt; specs, ILoggingService log, String canonical, String packageId) {<a name="line.201"></a>
+<span class="sourceLineNo">202</span>    this.rootFolder = rootFolder.replace("/", File.separator);<a name="line.202"></a>
+<span class="sourceLineNo">203</span>    this.specs = specs;<a name="line.203"></a>
+<span class="sourceLineNo">204</span>    this.log = log;<a name="line.204"></a>
+<span class="sourceLineNo">205</span>    this.canonical = canonical;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    this.forHL7 = canonical.contains("hl7.org/fhir");<a name="line.206"></a>
+<span class="sourceLineNo">207</span>    requirePublishBox = Utilities.startsWithInList(packageId, "hl7."); <a name="line.207"></a>
+<span class="sourceLineNo">208</span>  }<a name="line.208"></a>
+<span class="sourceLineNo">209</span><a name="line.209"></a>
+<span class="sourceLineNo">210</span>  public void setAltRootFolder(String altRootFolder) throws IOException {<a name="line.210"></a>
+<span class="sourceLineNo">211</span>    this.altRootFolder = Utilities.path(rootFolder, altRootFolder.replace("/", File.separator));<a name="line.211"></a>
+<span class="sourceLineNo">212</span>  }<a name="line.212"></a>
+<span class="sourceLineNo">213</span>  <a name="line.213"></a>
+<span class="sourceLineNo">214</span>  public List&lt;ValidationMessage&gt; check(String statusText) throws IOException {  <a name="line.214"></a>
+<span class="sourceLineNo">215</span>    this.statusText = statusText;<a name="line.215"></a>
+<span class="sourceLineNo">216</span>    iteration ++;<a name="line.216"></a>
+<span class="sourceLineNo">217</span><a name="line.217"></a>
+<span class="sourceLineNo">218</span>    List&lt;ValidationMessage&gt; messages = new ArrayList&lt;ValidationMessage&gt;();<a name="line.218"></a>
+<span class="sourceLineNo">219</span><a name="line.219"></a>
+<span class="sourceLineNo">220</span>    log.logDebugMessage(LogCategory.HTML, "CheckHTML: List files");<a name="line.220"></a>
+<span class="sourceLineNo">221</span>    // list new or updated files<a name="line.221"></a>
+<span class="sourceLineNo">222</span>    List&lt;String&gt; loadList = new ArrayList&lt;&gt;();<a name="line.222"></a>
+<span class="sourceLineNo">223</span>    listFiles(rootFolder, loadList);<a name="line.223"></a>
+<span class="sourceLineNo">224</span>    log.logMessage("found "+Integer.toString(loadList.size())+" files");<a name="line.224"></a>
+<span class="sourceLineNo">225</span><a name="line.225"></a>
+<span class="sourceLineNo">226</span>    checkGoneFiles();<a name="line.226"></a>
+<span class="sourceLineNo">227</span><a name="line.227"></a>
+<span class="sourceLineNo">228</span>    log.logDebugMessage(LogCategory.HTML, "Loading Files");<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    // load files<a name="line.229"></a>
+<span class="sourceLineNo">230</span>    int i = 0;<a name="line.230"></a>
+<span class="sourceLineNo">231</span>    int c = loadList.size() / 40;<a name="line.231"></a>
+<span class="sourceLineNo">232</span>    for (String s : loadList) {<a name="line.232"></a>
+<span class="sourceLineNo">233</span>      loadFile(s, rootFolder, messages);<a name="line.233"></a>
+<span class="sourceLineNo">234</span>      if (i == c) {<a name="line.234"></a>
+<span class="sourceLineNo">235</span>        System.out.print(".");<a name="line.235"></a>
+<span class="sourceLineNo">236</span>        i = 0;<a name="line.236"></a>
+<span class="sourceLineNo">237</span>      }<a name="line.237"></a>
+<span class="sourceLineNo">238</span>      i++;<a name="line.238"></a>
+<span class="sourceLineNo">239</span>    }<a name="line.239"></a>
+<span class="sourceLineNo">240</span>    System.out.println();<a name="line.240"></a>
+<span class="sourceLineNo">241</span><a name="line.241"></a>
+<span class="sourceLineNo">242</span><a name="line.242"></a>
+<span class="sourceLineNo">243</span>    log.logDebugMessage(LogCategory.HTML, "Checking Files");<a name="line.243"></a>
+<span class="sourceLineNo">244</span>    links = 0;<a name="line.244"></a>
+<span class="sourceLineNo">245</span>    // check links<a name="line.245"></a>
+<span class="sourceLineNo">246</span>    boolean first = true;<a name="line.246"></a>
+<span class="sourceLineNo">247</span>    i = 0;<a name="line.247"></a>
+<span class="sourceLineNo">248</span>    c = cache.size() / 40;<a name="line.248"></a>
+<span class="sourceLineNo">249</span>    for (String s : sorted(cache.keySet())) {<a name="line.249"></a>
+<span class="sourceLineNo">250</span>      log.logDebugMessage(LogCategory.HTML, "Check "+s);<a name="line.250"></a>
+<span class="sourceLineNo">251</span>      LoadedFile lf = cache.get(s);<a name="line.251"></a>
+<span class="sourceLineNo">252</span>      if (lf.getHl7State() != null &amp;&amp; !lf.getHl7State()) {<a name="line.252"></a>
+<span class="sourceLineNo">253</span>        boolean check = true;<a name="line.253"></a>
+<span class="sourceLineNo">254</span>        for (String pattern : exemptHtmlPatterns ) {<a name="line.254"></a>
+<span class="sourceLineNo">255</span>          if (lf.path.matches(pattern)) {<a name="line.255"></a>
+<span class="sourceLineNo">256</span>            check = false;<a name="line.256"></a>
+<span class="sourceLineNo">257</span>            break;<a name="line.257"></a>
+<span class="sourceLineNo">258</span>          }<a name="line.258"></a>
+<span class="sourceLineNo">259</span>        }<a name="line.259"></a>
+<span class="sourceLineNo">260</span>        if (check &amp;&amp; !lf.isExempt()) {<a name="line.260"></a>
+<span class="sourceLineNo">261</span>          if (requirePublishBox) {<a name="line.261"></a>
+<span class="sourceLineNo">262</span>            messages.add(new ValidationMessage(Source.Publisher, IssueType.NOTFOUND, s, "The html source does not contain the publish box" <a name="line.262"></a>
+<span class="sourceLineNo">263</span>              + (first ? " "+RELEASE_HTML_MARKER+" (see note at http://wiki.hl7.org/index.php?title=FHIR_Implementation_Guide_Publishing_Requirements#HL7_HTML_Standards_considerations)" : ""), IssueSeverity.ERROR));<a name="line.263"></a>
+<span class="sourceLineNo">264</span>          } else if (first) {<a name="line.264"></a>
+<span class="sourceLineNo">265</span>            messages.add(new ValidationMessage(Source.Publisher, IssueType.NOTFOUND, s, "The html source does not contain the publish box; this is recommended for publishing support",<a name="line.265"></a>
+<span class="sourceLineNo">266</span>                "The html source does not contain the publish box; this is recommended for publishing support  (see note at http://wiki.hl7.org/index.php?title=FHIR_Implementation_Guide_Publishing_Requirements#HL7_HTML_Standards_considerations). Note that this is mandatory for HL7 specifications, and on the ci-build, but in other cases it's still recommended (this is only reported once, but applies for all pages)", IssueSeverity.INFORMATION));            <a name="line.266"></a>
+<span class="sourceLineNo">267</span>            <a name="line.267"></a>
+<span class="sourceLineNo">268</span>          }<a name="line.268"></a>
+<span class="sourceLineNo">269</span>          missingPublishBox = true;<a name="line.269"></a>
+<span class="sourceLineNo">270</span>          missingPublishBoxList.add(s.substring(rootFolder.length()+1));<a name="line.270"></a>
+<span class="sourceLineNo">271</span>          first = false;<a name="line.271"></a>
+<span class="sourceLineNo">272</span>        }<a name="line.272"></a>
+<span class="sourceLineNo">273</span>      }<a name="line.273"></a>
+<span class="sourceLineNo">274</span>      if (lf.isHasXhtml()) {<a name="line.274"></a>
+<span class="sourceLineNo">275</span>        XhtmlNode x = new XhtmlParser().setMustBeWellFormed(strict).parse(new FileInputStream(lf.filename), null);<a name="line.275"></a>
+<span class="sourceLineNo">276</span>        referencesValidatorPack = false;<a name="line.276"></a>
+<span class="sourceLineNo">277</span>        if (checkLinks(lf, s, "", x, null, messages, false) != NodeChangeType.NONE) { // returns true if changed<a name="line.277"></a>
+<span class="sourceLineNo">278</span>          saveFile(lf, x);<a name="line.278"></a>
+<span class="sourceLineNo">279</span>        }<a name="line.279"></a>
+<span class="sourceLineNo">280</span>        if (referencesValidatorPack) {<a name="line.280"></a>
+<span class="sourceLineNo">281</span>          if (lf.getHl7State() != null &amp;&amp; lf.getHl7State()) {<a name="line.281"></a>
+<span class="sourceLineNo">282</span>            messages.add(new ValidationMessage(Source.Publisher, IssueType.BUSINESSRULE, s, "The html source references validator.pack which is deprecated. Change the IG to describe the use of the package system instead", IssueSeverity.ERROR));                      <a name="line.282"></a>
+<span class="sourceLineNo">283</span>          } else {<a name="line.283"></a>
+<span class="sourceLineNo">284</span>            messages.add(new ValidationMessage(Source.Publisher, IssueType.BUSINESSRULE, s, "The html source references validator.pack which is deprecated. Change the IG to describe the use of the package system instead", IssueSeverity.WARNING));                                  <a name="line.284"></a>
+<span class="sourceLineNo">285</span>          }<a name="line.285"></a>
+<span class="sourceLineNo">286</span>        }<a name="line.286"></a>
+<span class="sourceLineNo">287</span>      }<a name="line.287"></a>
+<span class="sourceLineNo">288</span>      if (i == c) {<a name="line.288"></a>
+<span class="sourceLineNo">289</span>        System.out.print(".");<a name="line.289"></a>
+<span class="sourceLineNo">290</span>        i = 0;<a name="line.290"></a>
+<span class="sourceLineNo">291</span>      }<a name="line.291"></a>
+<span class="sourceLineNo">292</span>      i++;<a name="line.292"></a>
+<span class="sourceLineNo">293</span>    }<a name="line.293"></a>
+<span class="sourceLineNo">294</span>    System.out.println();<a name="line.294"></a>
+<span class="sourceLineNo">295</span> <a name="line.295"></a>
+<span class="sourceLineNo">296</span>    log.logDebugMessage(LogCategory.HTML, "Checking Other Links");<a name="line.296"></a>
+<span class="sourceLineNo">297</span>    // check other links:<a name="line.297"></a>
+<span class="sourceLineNo">298</span>    for (StringPair sp : otherlinks) {<a name="line.298"></a>
+<span class="sourceLineNo">299</span>      checkResolveLink(sp.source, null, null, sp.link, sp.text, messages, null);<a name="line.299"></a>
+<span class="sourceLineNo">300</span>    }<a name="line.300"></a>
+<span class="sourceLineNo">301</span>    <a name="line.301"></a>
+<span class="sourceLineNo">302</span>    log.logDebugMessage(LogCategory.HTML, "Done checking");<a name="line.302"></a>
+<span class="sourceLineNo">303</span>    <a name="line.303"></a>
+<span class="sourceLineNo">304</span>    return messages;<a name="line.304"></a>
+<span class="sourceLineNo">305</span>  }<a name="line.305"></a>
+<span class="sourceLineNo">306</span><a name="line.306"></a>
+<span class="sourceLineNo">307</span><a name="line.307"></a>
+<span class="sourceLineNo">308</span>  private List&lt;String&gt; sorted(Set&lt;String&gt; keys) {<a name="line.308"></a>
+<span class="sourceLineNo">309</span>    List&lt;String&gt; res = new ArrayList&lt;&gt;();<a name="line.309"></a>
+<span class="sourceLineNo">310</span>    res.addAll(keys);<a name="line.310"></a>
+<span class="sourceLineNo">311</span>    Collections.sort(res);<a name="line.311"></a>
+<span class="sourceLineNo">312</span>    return res;<a name="line.312"></a>
+<span class="sourceLineNo">313</span>  }<a name="line.313"></a>
+<span class="sourceLineNo">314</span><a name="line.314"></a>
+<span class="sourceLineNo">315</span>  private void saveFile(LoadedFile lf, XhtmlNode x) throws IOException {<a name="line.315"></a>
+<span class="sourceLineNo">316</span>    new File(lf.getFilename()).delete();<a name="line.316"></a>
+<span class="sourceLineNo">317</span>    FileOutputStream f = new FileOutputStream(lf.getFilename());<a name="line.317"></a>
+<span class="sourceLineNo">318</span>    new XhtmlComposer(XhtmlComposer.HTML).composeDocument(f, x);<a name="line.318"></a>
+<span class="sourceLineNo">319</span>    f.close();<a name="line.319"></a>
+<span class="sourceLineNo">320</span>  }<a name="line.320"></a>
+<span class="sourceLineNo">321</span><a name="line.321"></a>
+<span class="sourceLineNo">322</span>  private void checkGoneFiles() {<a name="line.322"></a>
+<span class="sourceLineNo">323</span>    List&lt;String&gt; td = new ArrayList&lt;String&gt;();<a name="line.323"></a>
+<span class="sourceLineNo">324</span>    for (String s : cache.keySet()) {<a name="line.324"></a>
+<span class="sourceLineNo">325</span>      LoadedFile lf = cache.get(s);<a name="line.325"></a>
+<span class="sourceLineNo">326</span>      if (lf.getIteration() != iteration)<a name="line.326"></a>
+<span class="sourceLineNo">327</span>        td.add(s);<a name="line.327"></a>
+<span class="sourceLineNo">328</span>    }<a name="line.328"></a>
+<span class="sourceLineNo">329</span>    for (String s : td)<a name="line.329"></a>
+<span class="sourceLineNo">330</span>      cache.remove(s);<a name="line.330"></a>
+<span class="sourceLineNo">331</span>  }<a name="line.331"></a>
+<span class="sourceLineNo">332</span><a name="line.332"></a>
+<span class="sourceLineNo">333</span>  private void listFiles(String folder, List&lt;String&gt; loadList) {<a name="line.333"></a>
+<span class="sourceLineNo">334</span>    for (File f : new File(folder).listFiles()) {<a name="line.334"></a>
+<span class="sourceLineNo">335</span>      if (!Utilities.startsWithInList(f.getAbsolutePath(), exceptions)) {<a name="line.335"></a>
+<span class="sourceLineNo">336</span>        if (f.isDirectory()) {<a name="line.336"></a>
+<span class="sourceLineNo">337</span>          listFiles(f.getAbsolutePath(), loadList);<a name="line.337"></a>
+<span class="sourceLineNo">338</span>        } else {<a name="line.338"></a>
+<span class="sourceLineNo">339</span>          LoadedFile lf = cache.get(f.getAbsolutePath());<a name="line.339"></a>
+<span class="sourceLineNo">340</span>          if (lf == null || lf.getLastModified() != f.lastModified())<a name="line.340"></a>
+<span class="sourceLineNo">341</span>            loadList.add(f.getAbsolutePath());<a name="line.341"></a>
+<span class="sourceLineNo">342</span>          else<a name="line.342"></a>
+<span class="sourceLineNo">343</span>            lf.setIteration(iteration);<a name="line.343"></a>
+<span class="sourceLineNo">344</span>        }<a name="line.344"></a>
+<span class="sourceLineNo">345</span>      }<a name="line.345"></a>
+<span class="sourceLineNo">346</span>    }<a name="line.346"></a>
+<span class="sourceLineNo">347</span>  }<a name="line.347"></a>
+<span class="sourceLineNo">348</span><a name="line.348"></a>
+<span class="sourceLineNo">349</span>  private void loadFile(String s, String base, List&lt;ValidationMessage&gt; messages) {<a name="line.349"></a>
+<span class="sourceLineNo">350</span>    log.logDebugMessage(LogCategory.HTML, "Load "+s);<a name="line.350"></a>
+<span class="sourceLineNo">351</span><a name="line.351"></a>
+<span class="sourceLineNo">352</span>    File f = new File(s);<a name="line.352"></a>
+<span class="sourceLineNo">353</span>    Boolean hl7State = null;<a name="line.353"></a>
+<span class="sourceLineNo">354</span>    XhtmlNode x = null;<a name="line.354"></a>
+<span class="sourceLineNo">355</span>    boolean htmlName = f.getName().endsWith(".html") || f.getName().endsWith(".xhtml");<a name="line.355"></a>
+<span class="sourceLineNo">356</span>    try {<a name="line.356"></a>
+<span class="sourceLineNo">357</span>      x = new XhtmlParser().setMustBeWellFormed(strict).parse(new FileInputStream(f), null);<a name="line.357"></a>
+<span class="sourceLineNo">358</span>      if (x.getElement("html")==null &amp;&amp; !htmlName) {<a name="line.358"></a>
+<span class="sourceLineNo">359</span>        // We don't want resources being treated as HTML.  We'll check the HTML of the narrative in the page representation<a name="line.359"></a>
+<span class="sourceLineNo">360</span>        x = null;<a name="line.360"></a>
+<span class="sourceLineNo">361</span>      }<a name="line.361"></a>
+<span class="sourceLineNo">362</span>    } catch (FHIRFormatError | IOException e) {<a name="line.362"></a>
+<span class="sourceLineNo">363</span>      x = null;<a name="line.363"></a>
+<span class="sourceLineNo">364</span>      if (htmlName || !(e.getMessage().startsWith("Unable to Parse HTML - does not start with tag.") || e.getMessage().startsWith("Malformed XHTML"))) {<a name="line.364"></a>
+<span class="sourceLineNo">365</span>          messages.add(new ValidationMessage(Source.LinkChecker, IssueType.STRUCTURE, s, e.getMessage(), IssueSeverity.ERROR).setLocationLink(makeLocal(f.getAbsolutePath())));<a name="line.365"></a>
+<span class="sourceLineNo">366</span>      }<a name="line.366"></a>
+<span class="sourceLineNo">367</span>    }<a name="line.367"></a>
+<span class="sourceLineNo">368</span>    if (x != null) {<a name="line.368"></a>
+<span class="sourceLineNo">369</span>      String src;<a name="line.369"></a>
+<span class="sourceLineNo">370</span>      try {<a name="line.370"></a>
+<span class="sourceLineNo">371</span>        src = TextFile.fileToString(f);<a name="line.371"></a>
+<span class="sourceLineNo">372</span>        hl7State = src.contains(RELEASE_HTML_MARKER);<a name="line.372"></a>
+<span class="sourceLineNo">373</span>        if (hl7State) {<a name="line.373"></a>
+<span class="sourceLineNo">374</span>          src = src.replace(RELEASE_HTML_MARKER, START_HTML_MARKER + statusText+END_HTML_MARKER);<a name="line.374"></a>
+<span class="sourceLineNo">375</span>          TextFile.stringToFile(src, f, false);<a name="line.375"></a>
+<span class="sourceLineNo">376</span>        }<a name="line.376"></a>
+<span class="sourceLineNo">377</span>        x = new XhtmlParser().setMustBeWellFormed(strict).parse(new FileInputStream(f), null);<a name="line.377"></a>
+<span class="sourceLineNo">378</span>      } catch (Exception e1) {<a name="line.378"></a>
+<span class="sourceLineNo">379</span>        hl7State = false;<a name="line.379"></a>
+<span class="sourceLineNo">380</span>      }<a name="line.380"></a>
+<span class="sourceLineNo">381</span>    }<a name="line.381"></a>
+<span class="sourceLineNo">382</span>    LoadedFile lf = new LoadedFile(s, getPath(s, base), f.lastModified(), iteration, hl7State, findExemptionComment(x) || Utilities.existsInList(f.getName(), "searchform.html"), x != null);<a name="line.382"></a>
+<span class="sourceLineNo">383</span>    cache.put(s, lf);<a name="line.383"></a>
+<span class="sourceLineNo">384</span>    if (x != null) {<a name="line.384"></a>
+<span class="sourceLineNo">385</span>      checkHtmlStructure(s, x, messages);<a name="line.385"></a>
+<span class="sourceLineNo">386</span>      listTargets(x, lf.getTargets());<a name="line.386"></a>
+<span class="sourceLineNo">387</span>      if (forHL7 &amp; !isRedirect(x)) {<a name="line.387"></a>
+<span class="sourceLineNo">388</span>        checkTemplatePoints(x, messages, s);<a name="line.388"></a>
+<span class="sourceLineNo">389</span>      }<a name="line.389"></a>
+<span class="sourceLineNo">390</span>    }<a name="line.390"></a>
+<span class="sourceLineNo">391</span>    <a name="line.391"></a>
+<span class="sourceLineNo">392</span>    // ok, now check for XSS safety:<a name="line.392"></a>
+<span class="sourceLineNo">393</span>    // this is presently disabled; it's not clear whether oWasp is worth trying out for the purpose we are seeking (XSS safety)<a name="line.393"></a>
+<span class="sourceLineNo">394</span>    <a name="line.394"></a>
+<span class="sourceLineNo">395</span>//    <a name="line.395"></a>
+<span class="sourceLineNo">396</span>//    HtmlPolicyBuilder pp = new HtmlPolicyBuilder();<a name="line.396"></a>
+<span class="sourceLineNo">397</span>//    pp<a name="line.397"></a>
+<span class="sourceLineNo">398</span>//      .allowStandardUrlProtocols().allowAttributes("title").globally() <a name="line.398"></a>
+<span class="sourceLineNo">399</span>//      .allowElements("html", "head", "meta", "title", "body", "span", "link", "nav", "button")<a name="line.399"></a>
+<span class="sourceLineNo">400</span>//      .allowAttributes("xmlns", "xml:lang", "lang", "charset", "name", "content", "id", "class", "href", "rel", "sizes", "no-external", "target", "data-target", "data-toggle", "type", "colspan").globally();<a name="line.400"></a>
+<span class="sourceLineNo">401</span>//    <a name="line.401"></a>
+<span class="sourceLineNo">402</span>//    PolicyFactory policy = Sanitizers.FORMATTING.and(Sanitizers.LINKS).and(Sanitizers.BLOCKS).and(Sanitizers.IMAGES).and(Sanitizers.STYLES).and(Sanitizers.TABLES).and(pp.toFactory());<a name="line.402"></a>
+<span class="sourceLineNo">403</span>//    <a name="line.403"></a>
+<span class="sourceLineNo">404</span>//    String source;<a name="line.404"></a>
+<span class="sourceLineNo">405</span>//    try {<a name="line.405"></a>
+<span class="sourceLineNo">406</span>//      source = TextFile.fileToString(s);<a name="line.406"></a>
+<span class="sourceLineNo">407</span>//      HtmlChangeListenerContext ctxt = new HtmlChangeListenerContext(messages, s);<a name="line.407"></a>
+<span class="sourceLineNo">408</span>//      String sanitized = policy.sanitize(source, new HtmlSanitizerObserver(), ctxt);<a name="line.408"></a>
+<span class="sourceLineNo">409</span>//    } catch (IOException e) {<a name="line.409"></a>
+<span class="sourceLineNo">410</span>//      messages.add(new ValidationMessage(Source.Publisher, IssueType.STRUCTURE, s, "failed security testing: "+e.getMessage(), IssueSeverity.ERROR));<a name="line.410"></a>
+<span class="sourceLineNo">411</span>//    } <a name="line.411"></a>
+<span class="sourceLineNo">412</span>  }<a name="line.412"></a>
+<span class="sourceLineNo">413</span><a name="line.413"></a>
+<span class="sourceLineNo">414</span>  private String getPath(String s, String base) {<a name="line.414"></a>
+<span class="sourceLineNo">415</span>    String t = s.substring(base.length()+1);<a name="line.415"></a>
+<span class="sourceLineNo">416</span>    return t.replace("\\", "/");<a name="line.416"></a>
+<span class="sourceLineNo">417</span>  }<a name="line.417"></a>
+<span class="sourceLineNo">418</span><a name="line.418"></a>
+<span class="sourceLineNo">419</span>  private boolean isRedirect(XhtmlNode x) {<a name="line.419"></a>
+<span class="sourceLineNo">420</span>    return !hasHTTPRedirect(x);<a name="line.420"></a>
+<span class="sourceLineNo">421</span>  }<a name="line.421"></a>
+<span class="sourceLineNo">422</span><a name="line.422"></a>
+<span class="sourceLineNo">423</span>  private boolean hasHTTPRedirect(XhtmlNode x) {<a name="line.423"></a>
+<span class="sourceLineNo">424</span>    if ("meta".equals(x.getName()) &amp;&amp; x.hasAttribute("http-equiv"))<a name="line.424"></a>
+<span class="sourceLineNo">425</span>      return true;<a name="line.425"></a>
+<span class="sourceLineNo">426</span>    for (XhtmlNode c : x.getChildNodes())<a name="line.426"></a>
+<span class="sourceLineNo">427</span>      if (hasHTTPRedirect(c))<a name="line.427"></a>
+<span class="sourceLineNo">428</span>        return true;<a name="line.428"></a>
+<span class="sourceLineNo">429</span>    return false;<a name="line.429"></a>
+<span class="sourceLineNo">430</span>  }<a name="line.430"></a>
+<span class="sourceLineNo">431</span><a name="line.431"></a>
+<span class="sourceLineNo">432</span>  private void checkTemplatePoints(XhtmlNode x, List&lt;ValidationMessage&gt; messages, String s) {<a name="line.432"></a>
+<span class="sourceLineNo">433</span>    // look for a footer: a div tag with igtool=footer on it <a name="line.433"></a>
+<span class="sourceLineNo">434</span>    XhtmlNode footer = findFooterDiv(x);<a name="line.434"></a>
+<span class="sourceLineNo">435</span>    if (footer == null &amp;&amp; !findExemptionComment(x)) <a name="line.435"></a>
+<span class="sourceLineNo">436</span>      messages.add(new ValidationMessage(Source.Publisher, IssueType.STRUCTURE, s, "The html must include a div with an attribute igtool=\"footer\" that marks the footer in the template", IssueSeverity.ERROR));<a name="line.436"></a>
+<span class="sourceLineNo">437</span>    else {<a name="line.437"></a>
+<span class="sourceLineNo">438</span>      // look in the footer for: .. nothing yet... <a name="line.438"></a>
+<span class="sourceLineNo">439</span>    }<a name="line.439"></a>
+<span class="sourceLineNo">440</span>  }<a name="line.440"></a>
+<span class="sourceLineNo">441</span><a name="line.441"></a>
+<span class="sourceLineNo">442</span>  private boolean findExemptionComment(XhtmlNode x) {<a name="line.442"></a>
+<span class="sourceLineNo">443</span>    if (x == null) {<a name="line.443"></a>
+<span class="sourceLineNo">444</span>      return false;<a name="line.444"></a>
+<span class="sourceLineNo">445</span>    }<a name="line.445"></a>
+<span class="sourceLineNo">446</span>    for (XhtmlNode c : x.getChildNodes()) {<a name="line.446"></a>
+<span class="sourceLineNo">447</span>      if (c.getNodeType() == NodeType.Comment &amp;&amp; x.getContent() != null &amp;&amp; x.getContent().trim().equals("frameset content"))<a name="line.447"></a>
+<span class="sourceLineNo">448</span>        return true;<a name="line.448"></a>
+<span class="sourceLineNo">449</span>    }<a name="line.449"></a>
+<span class="sourceLineNo">450</span>    return false;<a name="line.450"></a>
+<span class="sourceLineNo">451</span>  }<a name="line.451"></a>
+<span class="sourceLineNo">452</span><a name="line.452"></a>
+<span class="sourceLineNo">453</span>  private XhtmlNode findFooterDiv(XhtmlNode x) {<a name="line.453"></a>
+<span class="sourceLineNo">454</span>    if (x.getNodeType() == NodeType.Element &amp;&amp; "footer".equals(x.getAttribute("igtool")))<a name="line.454"></a>
+<span class="sourceLineNo">455</span>      return x;<a name="line.455"></a>
+<span class="sourceLineNo">456</span>    for (XhtmlNode c : x.getChildNodes()) {<a name="line.456"></a>
+<span class="sourceLineNo">457</span>      XhtmlNode n = findFooterDiv(c);<a name="line.457"></a>
+<span class="sourceLineNo">458</span>      if (n != null)<a name="line.458"></a>
+<span class="sourceLineNo">459</span>        return n;<a name="line.459"></a>
+<span class="sourceLineNo">460</span>    }<a name="line.460"></a>
+<span class="sourceLineNo">461</span>    return null;<a name="line.461"></a>
+<span class="sourceLineNo">462</span>  }<a name="line.462"></a>
+<span class="sourceLineNo">463</span><a name="line.463"></a>
+<span class="sourceLineNo">464</span>  private boolean findStatusBarComment(XhtmlNode x) {<a name="line.464"></a>
+<span class="sourceLineNo">465</span>    if (x.getNodeType() == NodeType.Comment &amp;&amp; "status-bar".equals(x.getContent().trim()))<a name="line.465"></a>
+<span class="sourceLineNo">466</span>      return true;<a name="line.466"></a>
+<span class="sourceLineNo">467</span>    for (XhtmlNode c : x.getChildNodes()) {<a name="line.467"></a>
+<span class="sourceLineNo">468</span>      if (findStatusBarComment(c))<a name="line.468"></a>
+<span class="sourceLineNo">469</span>        return true;<a name="line.469"></a>
+<span class="sourceLineNo">470</span>    }<a name="line.470"></a>
+<span class="sourceLineNo">471</span>    return false;<a name="line.471"></a>
+<span class="sourceLineNo">472</span>  }<a name="line.472"></a>
+<span class="sourceLineNo">473</span><a name="line.473"></a>
+<span class="sourceLineNo">474</span>  private void checkHtmlStructure(String s, XhtmlNode x, List&lt;ValidationMessage&gt; messages) {<a name="line.474"></a>
+<span class="sourceLineNo">475</span>    if (x.getNodeType() == NodeType.Document)<a name="line.475"></a>
+<span class="sourceLineNo">476</span>      x = x.getFirstElement();<a name="line.476"></a>
+<span class="sourceLineNo">477</span>    if (!"html".equals(x.getName()) &amp;&amp; !"div".equals(x.getName()))<a name="line.477"></a>
+<span class="sourceLineNo">478</span>      messages.add(new ValidationMessage(Source.Publisher, IssueType.STRUCTURE, s, "Root node must be 'html' or 'div', but is "+x.getName(), IssueSeverity.ERROR));<a name="line.478"></a>
+<span class="sourceLineNo">479</span>    // We support div as well because with HTML 5, referenced files might just start with &lt;div&gt;<a name="line.479"></a>
+<span class="sourceLineNo">480</span>    // todo: check secure?<a name="line.480"></a>
+<span class="sourceLineNo">481</span>    <a name="line.481"></a>
+<span class="sourceLineNo">482</span>  }<a name="line.482"></a>
+<span class="sourceLineNo">483</span><a name="line.483"></a>
+<span class="sourceLineNo">484</span>  private void listTargets(XhtmlNode x, Set&lt;String&gt; targets) {<a name="line.484"></a>
+<span class="sourceLineNo">485</span>    if ("a".equals(x.getName()) &amp;&amp; x.hasAttribute("name"))<a name="line.485"></a>
+<span class="sourceLineNo">486</span>      targets.add(x.getAttribute("name"));<a name="line.486"></a>
+<span class="sourceLineNo">487</span>    if (x.hasAttribute("id"))<a name="line.487"></a>
+<span class="sourceLineNo">488</span>      targets.add(x.getAttribute("id"));<a name="line.488"></a>
+<span class="sourceLineNo">489</span>    if (Utilities.existsInList(x.getName(), "h1", "h2", "h3", "h4", "h5", "h6")) {<a name="line.489"></a>
+<span class="sourceLineNo">490</span>      if (x.allText() != null) {<a name="line.490"></a>
+<span class="sourceLineNo">491</span>        targets.add(urlify(x.allText()));<a name="line.491"></a>
+<span class="sourceLineNo">492</span>      }<a name="line.492"></a>
+<span class="sourceLineNo">493</span>    }<a name="line.493"></a>
+<span class="sourceLineNo">494</span>    for (XhtmlNode c : x.getChildNodes())<a name="line.494"></a>
+<span class="sourceLineNo">495</span>      listTargets(c, targets);<a name="line.495"></a>
+<span class="sourceLineNo">496</span>  }<a name="line.496"></a>
+<span class="sourceLineNo">497</span><a name="line.497"></a>
+<span class="sourceLineNo">498</span>  private NodeChangeType checkLinks(LoadedFile lf, String s, String path, XhtmlNode x, String uuid, List&lt;ValidationMessage&gt; messages, boolean inPre) throws IOException {<a name="line.498"></a>
+<span class="sourceLineNo">499</span>    boolean changed = false;<a name="line.499"></a>
+<span class="sourceLineNo">500</span>    if (x.getName() != null) {<a name="line.500"></a>
+<span class="sourceLineNo">501</span>      path = path + "/"+ x.getName();<a name="line.501"></a>
+<span class="sourceLineNo">502</span>    } else {<a name="line.502"></a>
+<span class="sourceLineNo">503</span>      if (x.getContent() != null &amp;&amp; x.getContent().contains("validator.pack")) {<a name="line.503"></a>
+<span class="sourceLineNo">504</span>        referencesValidatorPack = true;<a name="line.504"></a>
+<span class="sourceLineNo">505</span>      }<a name="line.505"></a>
+<span class="sourceLineNo">506</span>    }<a name="line.506"></a>
+<span class="sourceLineNo">507</span>    if ("title".equals(x.getName()) &amp;&amp; Utilities.noString(x.allText())) {<a name="line.507"></a>
+<span class="sourceLineNo">508</span>      x.addText("?html-link?");<a name="line.508"></a>
+<span class="sourceLineNo">509</span>    }<a name="line.509"></a>
+<span class="sourceLineNo">510</span>    if ("a".equals(x.getName()) &amp;&amp; x.hasAttribute("href")) {<a name="line.510"></a>
+<span class="sourceLineNo">511</span>      changed = checkResolveLink(s, x.getLocation(), path, x.getAttribute("href"), x.allText(), messages, uuid);<a name="line.511"></a>
+<span class="sourceLineNo">512</span>    }<a name="line.512"></a>
+<span class="sourceLineNo">513</span>    if ("img".equals(x.getName()) &amp;&amp; x.hasAttribute("src")) {<a name="line.513"></a>
+<span class="sourceLineNo">514</span>      changed = checkResolveImageLink(s, x.getLocation(), path, x.getAttribute("src"), messages, uuid) || changed;<a name="line.514"></a>
+<span class="sourceLineNo">515</span>    }<a name="line.515"></a>
+<span class="sourceLineNo">516</span>    if ("link".equals(x.getName())) {<a name="line.516"></a>
+<span class="sourceLineNo">517</span>      changed = checkLinkElement(s, x.getLocation(), path, x.getAttribute("href"), messages, uuid) || changed;<a name="line.517"></a>
+<span class="sourceLineNo">518</span>    }<a name="line.518"></a>
+<span class="sourceLineNo">519</span>    if ("script".equals(x.getName())) {<a name="line.519"></a>
+<span class="sourceLineNo">520</span>      checkScriptElement(s, x.getLocation(), path, x, messages);<a name="line.520"></a>
+<span class="sourceLineNo">521</span>    }<a name="line.521"></a>
+<span class="sourceLineNo">522</span>    String nuid = genID(lf);<a name="line.522"></a>
+<span class="sourceLineNo">523</span>    boolean nchanged = false;<a name="line.523"></a>
+<span class="sourceLineNo">524</span>    boolean nSelfChanged = false;<a name="line.524"></a>
+<span class="sourceLineNo">525</span>    for (XhtmlNode c : x.getChildNodes()) { <a name="line.525"></a>
+<span class="sourceLineNo">526</span>      NodeChangeType ct = checkLinks(lf, s, path, c, nuid, messages, inPre || "pre".equals(x.getName()));<a name="line.526"></a>
+<span class="sourceLineNo">527</span>      if (ct == NodeChangeType.SELF) {<a name="line.527"></a>
+<span class="sourceLineNo">528</span>        nSelfChanged = true;<a name="line.528"></a>
+<span class="sourceLineNo">529</span>        nchanged = true;<a name="line.529"></a>
+<span class="sourceLineNo">530</span>      } else if (ct == NodeChangeType.CHILD) {<a name="line.530"></a>
+<span class="sourceLineNo">531</span>        nchanged = true;<a name="line.531"></a>
+<span class="sourceLineNo">532</span>      }      <a name="line.532"></a>
+<span class="sourceLineNo">533</span>    }<a name="line.533"></a>
+<span class="sourceLineNo">534</span>    if (nSelfChanged) {<a name="line.534"></a>
+<span class="sourceLineNo">535</span>      XhtmlNode a = new XhtmlNode(NodeType.Element);<a name="line.535"></a>
+<span class="sourceLineNo">536</span>      a.setName("a").setAttribute("name", nuid).addText("\u200B");<a name="line.536"></a>
+<span class="sourceLineNo">537</span>      x.getChildNodes().add(0, a);<a name="line.537"></a>
+<span class="sourceLineNo">538</span>    } <a name="line.538"></a>
+<span class="sourceLineNo">539</span>    if (changed)<a name="line.539"></a>
+<span class="sourceLineNo">540</span>      return NodeChangeType.SELF;<a name="line.540"></a>
+<span class="sourceLineNo">541</span>    else if (nchanged)<a name="line.541"></a>
+<span class="sourceLineNo">542</span>      return NodeChangeType.CHILD;<a name="line.542"></a>
+<span class="sourceLineNo">543</span>    else<a name="line.543"></a>
+<span class="sourceLineNo">544</span>      return NodeChangeType.NONE;<a name="line.544"></a>
+<span class="sourceLineNo">545</span>  }<a name="line.545"></a>
+<span class="sourceLineNo">546</span><a name="line.546"></a>
+<span class="sourceLineNo">547</span>  public String genID(LoadedFile lf) {<a name="line.547"></a>
+<span class="sourceLineNo">548</span>    return "l"+lf.getNextId(); // UUID.randomUUID().toString().toLowerCase();<a name="line.548"></a>
+<span class="sourceLineNo">549</span>  }<a name="line.549"></a>
+<span class="sourceLineNo">550</span><a name="line.550"></a>
+<span class="sourceLineNo">551</span>  private void checkScriptElement(String filename, Location loc, String path, XhtmlNode x, List&lt;ValidationMessage&gt; messages) {<a name="line.551"></a>
+<span class="sourceLineNo">552</span>    String src = x.getAttribute("src");<a name="line.552"></a>
+<span class="sourceLineNo">553</span>    if (!Utilities.noString(src) &amp;&amp; Utilities.isAbsoluteUrl(src) &amp;&amp; !Utilities.existsInList(src, <a name="line.553"></a>
+<span class="sourceLineNo">554</span>        "http://hl7.org/fhir/history-cm.js", "http://hl7.org/fhir/assets-hist/js/jquery.js"))<a name="line.554"></a>
+<span class="sourceLineNo">555</span>      messages.add(new ValidationMessage(Source.Publisher, IssueType.NOTFOUND, filename+(loc == null ? "" : " at "+loc.toString()), "The &lt;script&gt; src '"+src+"' is llegal", IssueSeverity.FATAL));    <a name="line.555"></a>
+<span class="sourceLineNo">556</span>  }<a name="line.556"></a>
+<span class="sourceLineNo">557</span><a name="line.557"></a>
+<span class="sourceLineNo">558</span>  private boolean checkLinkElement(String filename, Location loc, String path, String href, List&lt;ValidationMessage&gt; messages, String uuid) {<a name="line.558"></a>
+<span class="sourceLineNo">559</span>    if (Utilities.isAbsoluteUrl(href) &amp;&amp; !href.startsWith("http://hl7.org/") &amp;&amp; !href.startsWith("http://cql.hl7.org/")) {<a name="line.559"></a>
+<span class="sourceLineNo">560</span>      messages.add(new ValidationMessage(Source.Publisher, IssueType.NOTFOUND, filename+(loc == null ? "" : " at "+loc.toString()), "The &lt;link&gt; href '"+href+"' is llegal", IssueSeverity.FATAL).setLocationLink(uuid == null ? null : filename+"#"+uuid));<a name="line.560"></a>
+<span class="sourceLineNo">561</span>      return true;        <a name="line.561"></a>
+<span class="sourceLineNo">562</span>    } else<a name="line.562"></a>
+<span class="sourceLineNo">563</span>      return false;<a name="line.563"></a>
+<span class="sourceLineNo">564</span>  }<a name="line.564"></a>
+<span class="sourceLineNo">565</span><a name="line.565"></a>
+<span class="sourceLineNo">566</span>  private boolean checkResolveLink(String filename, Location loc, String path, String ref, String text, List&lt;ValidationMessage&gt; messages, String uuid) throws IOException {<a name="line.566"></a>
+<span class="sourceLineNo">567</span>    links++;<a name="line.567"></a>
+<span class="sourceLineNo">568</span>    String rref = Utilities.URLDecode(ref);<a name="line.568"></a>
+<span class="sourceLineNo">569</span>    if ((rref.startsWith("http:") || rref.startsWith("https:") ) &amp;&amp; (rref.endsWith(".sch") || rref.endsWith(".xsd") || rref.endsWith(".shex"))) { // work around for the fact that spec.internals does not track all these minor things <a name="line.569"></a>
+<span class="sourceLineNo">570</span>      rref = Utilities.changeFileExt(ref, ".html");<a name="line.570"></a>
+<span class="sourceLineNo">571</span>    }<a name="line.571"></a>
+<span class="sourceLineNo">572</span>    if (rref.startsWith("./")) {<a name="line.572"></a>
+<span class="sourceLineNo">573</span>      rref = rref.substring(2);<a name="line.573"></a>
+<span class="sourceLineNo">574</span>    }<a name="line.574"></a>
+<span class="sourceLineNo">575</span>    <a name="line.575"></a>
+<span class="sourceLineNo">576</span>    if (rref.contains("validator.pack")) {<a name="line.576"></a>
+<span class="sourceLineNo">577</span>      referencesValidatorPack = true;<a name="line.577"></a>
+<span class="sourceLineNo">578</span>    }<a name="line.578"></a>
+<span class="sourceLineNo">579</span>    if (ref.startsWith("data:")) {<a name="line.579"></a>
+<span class="sourceLineNo">580</span>      return true;<a name="line.580"></a>
+<span class="sourceLineNo">581</span>    }<a name="line.581"></a>
+<span class="sourceLineNo">582</span>    String tgtList = "";<a name="line.582"></a>
+<span class="sourceLineNo">583</span>    boolean resolved = Utilities.existsInList(ref, "qa.html", "http://hl7.org/fhir", "http://hl7.org", "http://www.hl7.org", "http://hl7.org/fhir/search.cfm") || <a name="line.583"></a>
+<span class="sourceLineNo">584</span>        ref.startsWith("http://gforge.hl7.org/gf/project/fhir/tracker/") || ref.startsWith("mailto:") || ref.startsWith("javascript:");<a name="line.584"></a>
+<span class="sourceLineNo">585</span>    if (!resolved &amp;&amp; forHL7)<a name="line.585"></a>
+<span class="sourceLineNo">586</span>      resolved = Utilities.pathURL(canonical, "history.html").equals(ref) || ref.equals("searchform.html"); <a name="line.586"></a>
+<span class="sourceLineNo">587</span>    if (!resolved )<a name="line.587"></a>
+<span class="sourceLineNo">588</span>      resolved = filename.contains("searchform.html") &amp;&amp; ref.equals("history.html"); <a name="line.588"></a>
+<span class="sourceLineNo">589</span>    if (!resolved)<a name="line.589"></a>
+<span class="sourceLineNo">590</span>      resolved = manual.contains(rref);<a name="line.590"></a>
+<span class="sourceLineNo">591</span>    if (!resolved &amp;&amp; specs != null){<a name="line.591"></a>
+<span class="sourceLineNo">592</span>      for (SpecMapManager spec : specs) {<a name="line.592"></a>
+<span class="sourceLineNo">593</span>        if (!resolved &amp;&amp; spec.getBase() != null) {<a name="line.593"></a>
+<span class="sourceLineNo">594</span>          resolved = resolved || spec.getBase().equals(rref) || (spec.getBase()).equals(rref+"/") || (spec.getBase()+"/").equals(rref)|| spec.hasTarget(rref) || <a name="line.594"></a>
+<span class="sourceLineNo">595</span>            Utilities.existsInList(rref, Utilities.pathURL(spec.getBase(), "definitions.json.zip"), Utilities.pathURL(spec.getBase(), "full-ig.zip"), Utilities.pathURL(spec.getBase(), "definitions.xml.zip"), Utilities.pathURL(spec.getBase(), "package.tgz"));<a name="line.595"></a>
+<span class="sourceLineNo">596</span>        }<a name="line.596"></a>
+<span class="sourceLineNo">597</span>        if (!resolved &amp;&amp; spec.getBase2() != null) {<a name="line.597"></a>
+<span class="sourceLineNo">598</span>          resolved = spec.getBase2().equals(rref) || (spec.getBase2()).equals(rref+"/") || <a name="line.598"></a>
+<span class="sourceLineNo">599</span>              Utilities.existsInList(rref, Utilities.pathURL(spec.getBase2(), "definitions.json.zip"), Utilities.pathURL(spec.getBase2(), "definitions.xml.zip"), Utilities.pathURL(spec.getBase2(), "package.tgz"), Utilities.pathURL(spec.getBase2(), "full-ig.zip")); <a name="line.599"></a>
+<span class="sourceLineNo">600</span>        }<a name="line.600"></a>
+<span class="sourceLineNo">601</span>      }<a name="line.601"></a>
+<span class="sourceLineNo">602</span>    }<a name="line.602"></a>
+<span class="sourceLineNo">603</span>    <a name="line.603"></a>
+<span class="sourceLineNo">604</span>    if (!resolved) {<a name="line.604"></a>
+<span class="sourceLineNo">605</span>      String fref = Utilities.path(Utilities.getDirectoryForFile(filename), ref);<a name="line.605"></a>
+<span class="sourceLineNo">606</span>      if (fref.equals(Utilities.path(rootFolder, "qa.html"))) {<a name="line.606"></a>
+<span class="sourceLineNo">607</span>        resolved = true;<a name="line.607"></a>
+<span class="sourceLineNo">608</span>      }<a name="line.608"></a>
+<span class="sourceLineNo">609</span>    }<a name="line.609"></a>
+<span class="sourceLineNo">610</span>    // special case end-points that are always valid:<a name="line.610"></a>
+<span class="sourceLineNo">611</span>     if (!resolved)<a name="line.611"></a>
+<span class="sourceLineNo">612</span>      resolved = Utilities.existsInList(ref, "http://hl7.org/fhir/fhir-spec.zip", "http://hl7.org/fhir/R4/fhir-spec.zip", "http://hl7.org/fhir/STU3/fhir-spec.zip", "http://hl7.org/fhir/DSTU2/fhir-spec.zip", <a name="line.612"></a>
+<span class="sourceLineNo">613</span>          "http://hl7.org/fhir-issues", "http://hl7.org/registry") || <a name="line.613"></a>
+<span class="sourceLineNo">614</span>          matchesTarget(ref, "http://hl7.org", "http://hl7.org/fhir/DSTU2", "http://hl7.org/fhir/STU3", "http://hl7.org/fhir/R4", "http://hl7.org/fhir/smart-app-launch", "http://hl7.org/fhir/validator");<a name="line.614"></a>
+<span class="sourceLineNo">615</span><a name="line.615"></a>
+<span class="sourceLineNo">616</span>     // external terminology resources <a name="line.616"></a>
+<span class="sourceLineNo">617</span>    if (!resolved) {<a name="line.617"></a>
+<span class="sourceLineNo">618</span>     resolved = Utilities.startsWithInList(ref, "http://cts.nlm.nih.gov/fhir"); <a name="line.618"></a>
+<span class="sourceLineNo">619</span>    }<a name="line.619"></a>
+<span class="sourceLineNo">620</span>    <a name="line.620"></a>
+<span class="sourceLineNo">621</span>    if (!resolved) {<a name="line.621"></a>
+<span class="sourceLineNo">622</span>      if (rref.startsWith("http://") || rref.startsWith("https://") || rref.startsWith("ftp://") || rref.startsWith("tel:")) {<a name="line.622"></a>
+<span class="sourceLineNo">623</span>        resolved = true;<a name="line.623"></a>
+<span class="sourceLineNo">624</span>        if (specs != null) {<a name="line.624"></a>
+<span class="sourceLineNo">625</span>          for (SpecMapManager spec : specs) {<a name="line.625"></a>
+<span class="sourceLineNo">626</span>            if (spec.getBase() != null &amp;&amp; rref.startsWith(spec.getBase())) {<a name="line.626"></a>
+<span class="sourceLineNo">627</span>              resolved = false;<a name="line.627"></a>
+<span class="sourceLineNo">628</span>            }<a name="line.628"></a>
+<span class="sourceLineNo">629</span>          }<a name="line.629"></a>
+<span class="sourceLineNo">630</span>        }<a name="line.630"></a>
+<span class="sourceLineNo">631</span>      } else { <a name="line.631"></a>
+<span class="sourceLineNo">632</span>        String page = rref;<a name="line.632"></a>
+<span class="sourceLineNo">633</span>        String name = null;<a name="line.633"></a>
+<span class="sourceLineNo">634</span>        if (page.startsWith("#")) {<a name="line.634"></a>
+<span class="sourceLineNo">635</span>          name = page.substring(1);<a name="line.635"></a>
+<span class="sourceLineNo">636</span>          page = filename;<a name="line.636"></a>
+<span class="sourceLineNo">637</span>        } else if (page.contains("#")) {<a name="line.637"></a>
+<span class="sourceLineNo">638</span>          name = page.substring(page.indexOf("#")+1);<a name="line.638"></a>
+<span class="sourceLineNo">639</span>          if (altRootFolder != null &amp;&amp; filename.startsWith(altRootFolder))<a name="line.639"></a>
+<span class="sourceLineNo">640</span>            page = Utilities.path(altRootFolder, page.substring(0, page.indexOf("#")).replace("/", File.separator));<a name="line.640"></a>
+<span class="sourceLineNo">641</span>          else<a name="line.641"></a>
+<span class="sourceLineNo">642</span>            page = Utilities.path(rootFolder, page.substring(0, page.indexOf("#")).replace("/", File.separator));<a name="line.642"></a>
+<span class="sourceLineNo">643</span>        } else {<a name="line.643"></a>
+<span class="sourceLineNo">644</span>          String folder = Utilities.getDirectoryForFile(filename);<a name="line.644"></a>
+<span class="sourceLineNo">645</span>          page = Utilities.path(folder == null ? (altRootFolder != null &amp;&amp; filename.startsWith(altRootFolder) ? altRootFolder : rootFolder) : folder, page.replace("/", File.separator));<a name="line.645"></a>
+<span class="sourceLineNo">646</span>        }<a name="line.646"></a>
+<span class="sourceLineNo">647</span>        LoadedFile f = cache.get(page);<a name="line.647"></a>
+<span class="sourceLineNo">648</span>        if (f != null) {<a name="line.648"></a>
+<span class="sourceLineNo">649</span>          if (Utilities.noString(name))<a name="line.649"></a>
+<span class="sourceLineNo">650</span>            resolved = true;<a name="line.650"></a>
+<span class="sourceLineNo">651</span>          else { <a name="line.651"></a>
+<span class="sourceLineNo">652</span>            resolved = f.targets.contains(name);<a name="line.652"></a>
+<span class="sourceLineNo">653</span>            tgtList = " (valid targets: "+(f.targets.size() &gt; 40 ? Integer.toString(f.targets.size())+" targets"  :  f.targets.toString())+")";<a name="line.653"></a>
+<span class="sourceLineNo">654</span>            for (String s : f.targets) {<a name="line.654"></a>
+<span class="sourceLineNo">655</span>              if (s.equalsIgnoreCase(name)) {<a name="line.655"></a>
+<span class="sourceLineNo">656</span>                tgtList = (" - case is wrong ('"+s+"')");<a name="line.656"></a>
+<span class="sourceLineNo">657</span>              }<a name="line.657"></a>
+<span class="sourceLineNo">658</span>            }<a name="line.658"></a>
+<span class="sourceLineNo">659</span>          }<a name="line.659"></a>
+<span class="sourceLineNo">660</span>        }<a name="line.660"></a>
+<span class="sourceLineNo">661</span>      }<a name="line.661"></a>
+<span class="sourceLineNo">662</span>    }<a name="line.662"></a>
+<span class="sourceLineNo">663</span>    if (resolved) {<a name="line.663"></a>
+<span class="sourceLineNo">664</span>      return false;<a name="line.664"></a>
+<span class="sourceLineNo">665</span>    } else {<a name="line.665"></a>
+<span class="sourceLineNo">666</span>      if (text == null)<a name="line.666"></a>
+<span class="sourceLineNo">667</span>        text = "";<a name="line.667"></a>
+<span class="sourceLineNo">668</span>      messages.add(new ValidationMessage(Source.LinkChecker, IssueType.NOTFOUND, filename+(path == null ? "" : "#"+path+(loc == null ? "" : " at "+loc.toString())), "The link '"+ref+"' for \""+text.replaceAll("[\\s\\n]+", " ").trim()+"\" cannot be resolved"+tgtList, IssueSeverity.ERROR).setLocationLink(uuid == null ? null : makeLocal(filename)+"#"+uuid));<a name="line.668"></a>
+<span class="sourceLineNo">669</span>      return true;<a name="line.669"></a>
+<span class="sourceLineNo">670</span>    } <a name="line.670"></a>
+<span class="sourceLineNo">671</span>  }<a name="line.671"></a>
+<span class="sourceLineNo">672</span><a name="line.672"></a>
+<span class="sourceLineNo">673</span><a name="line.673"></a>
+<span class="sourceLineNo">674</span>  private JsonObject fetchJson(String source) throws IOException {<a name="line.674"></a>
+<span class="sourceLineNo">675</span>    URL url = new URL(source);<a name="line.675"></a>
+<span class="sourceLineNo">676</span>    URLConnection c = url.openConnection();<a name="line.676"></a>
+<span class="sourceLineNo">677</span>    return (JsonObject) new com.google.gson.JsonParser().parse(TextFile.streamToString(c.getInputStream()));<a name="line.677"></a>
+<span class="sourceLineNo">678</span>  }<a name="line.678"></a>
+<span class="sourceLineNo">679</span><a name="line.679"></a>
+<span class="sourceLineNo">680</span>  private boolean matchesTarget(String ref, String... url) {<a name="line.680"></a>
+<span class="sourceLineNo">681</span>    for (String s : url) {<a name="line.681"></a>
+<span class="sourceLineNo">682</span>      if (ref.equals(s))<a name="line.682"></a>
+<span class="sourceLineNo">683</span>        return true;<a name="line.683"></a>
+<span class="sourceLineNo">684</span>      if (ref.equals(s+"/"))<a name="line.684"></a>
+<span class="sourceLineNo">685</span>        return true;<a name="line.685"></a>
+<span class="sourceLineNo">686</span>      if (ref.equals(s+"/index.html"))<a name="line.686"></a>
+<span class="sourceLineNo">687</span>        return true;<a name="line.687"></a>
+<span class="sourceLineNo">688</span>    }<a name="line.688"></a>
+<span class="sourceLineNo">689</span>    return false;<a name="line.689"></a>
+<span class="sourceLineNo">690</span>  }<a name="line.690"></a>
+<span class="sourceLineNo">691</span><a name="line.691"></a>
+<span class="sourceLineNo">692</span>  private SpecMapManager loadSpecMap(String id, String ver, String url) throws IOException {<a name="line.692"></a>
+<span class="sourceLineNo">693</span>    NpmPackage pi = pcm.loadPackageFromCacheOnly(id, ver);<a name="line.693"></a>
+<span class="sourceLineNo">694</span>    if (pi == null) {<a name="line.694"></a>
+<span class="sourceLineNo">695</span>      System.out.println("Fetch "+id+" package from "+url);<a name="line.695"></a>
+<span class="sourceLineNo">696</span>      URL url1 = new URL(Utilities.pathURL(url, "package.tgz")+"?nocache=" + System.currentTimeMillis());<a name="line.696"></a>
+<span class="sourceLineNo">697</span>      URLConnection c = url1.openConnection();<a name="line.697"></a>
+<span class="sourceLineNo">698</span>      InputStream src = c.getInputStream();<a name="line.698"></a>
+<span class="sourceLineNo">699</span>      pi = pcm.addPackageToCache(id, ver, src, url);<a name="line.699"></a>
+<span class="sourceLineNo">700</span>    }    <a name="line.700"></a>
+<span class="sourceLineNo">701</span>    SpecMapManager sm = new SpecMapManager(TextFile.streamToBytes(pi.load("other", "spec.internals")), pi.getNpm().getAsJsonObject("dependencies").get("hl7.fhir.core").getAsString());<a name="line.701"></a>
+<span class="sourceLineNo">702</span>    sm.setBase(PackageHacker.fixPackageUrl(url));<a name="line.702"></a>
+<span class="sourceLineNo">703</span>    return sm;<a name="line.703"></a>
+<span class="sourceLineNo">704</span>  }<a name="line.704"></a>
+<span class="sourceLineNo">705</span><a name="line.705"></a>
+<span class="sourceLineNo">706</span>  private String makeLocal(String filename) {<a name="line.706"></a>
+<span class="sourceLineNo">707</span>    if (filename.startsWith(rootFolder))<a name="line.707"></a>
+<span class="sourceLineNo">708</span>      return filename.substring(rootFolder.length()+1);<a name="line.708"></a>
+<span class="sourceLineNo">709</span>    return filename;<a name="line.709"></a>
+<span class="sourceLineNo">710</span>  }<a name="line.710"></a>
+<span class="sourceLineNo">711</span><a name="line.711"></a>
+<span class="sourceLineNo">712</span>  private boolean checkResolveImageLink(String filename, Location loc, String path, String ref, List&lt;ValidationMessage&gt; messages, String uuid) throws IOException {<a name="line.712"></a>
+<span class="sourceLineNo">713</span>    links++;<a name="line.713"></a>
+<span class="sourceLineNo">714</span>    String tgtList = "";<a name="line.714"></a>
+<span class="sourceLineNo">715</span>    boolean resolved = Utilities.existsInList(ref);<a name="line.715"></a>
+<span class="sourceLineNo">716</span>    if (ref.startsWith("data:"))<a name="line.716"></a>
+<span class="sourceLineNo">717</span>      resolved = true;<a name="line.717"></a>
+<span class="sourceLineNo">718</span>    if (ref.startsWith("./")) {<a name="line.718"></a>
+<span class="sourceLineNo">719</span>      ref = ref.substring(2);<a name="line.719"></a>
+<span class="sourceLineNo">720</span>    }<a name="line.720"></a>
+<span class="sourceLineNo">721</span>    if (!resolved)<a name="line.721"></a>
+<span class="sourceLineNo">722</span>      resolved = manual.contains(ref);<a name="line.722"></a>
+<span class="sourceLineNo">723</span>    if (!resolved &amp;&amp; specs != null){<a name="line.723"></a>
+<span class="sourceLineNo">724</span>      for (SpecMapManager spec : specs) {<a name="line.724"></a>
+<span class="sourceLineNo">725</span>        resolved = resolved || (spec.getBase() != null &amp;&amp; spec.hasImage(ref)); <a name="line.725"></a>
+<span class="sourceLineNo">726</span>      }<a name="line.726"></a>
+<span class="sourceLineNo">727</span>    }<a name="line.727"></a>
+<span class="sourceLineNo">728</span>    if (!resolved) {<a name="line.728"></a>
+<span class="sourceLineNo">729</span>      ;resolved = Utilities.existsInList(ref, "http://hl7.org/fhir/assets-hist/images/fhir-logo-www.png", "http://hl7.org/fhir/assets-hist/images/hl7-logo-n.png"); <a name="line.729"></a>
+<span class="sourceLineNo">730</span>    }<a name="line.730"></a>
+<span class="sourceLineNo">731</span>    if (!resolved) {<a name="line.731"></a>
+<span class="sourceLineNo">732</span>      if (ref.startsWith("http://") || ref.startsWith("https://")) {<a name="line.732"></a>
+<span class="sourceLineNo">733</span>        resolved = true;<a name="line.733"></a>
+<span class="sourceLineNo">734</span>        if (specs != null) {<a name="line.734"></a>
+<span class="sourceLineNo">735</span>          for (SpecMapManager spec : specs) {<a name="line.735"></a>
+<span class="sourceLineNo">736</span>            if (ref.startsWith(spec.getBase()))<a name="line.736"></a>
+<span class="sourceLineNo">737</span>              resolved = false;<a name="line.737"></a>
+<span class="sourceLineNo">738</span>          }<a name="line.738"></a>
+<span class="sourceLineNo">739</span>        }<a name="line.739"></a>
+<span class="sourceLineNo">740</span>      } else if (!ref.contains("#")) { <a name="line.740"></a>
+<span class="sourceLineNo">741</span>        String page = Utilities.path(Utilities.getDirectoryForFile(filename), ref.replace("/", File.separator));<a name="line.741"></a>
+<span class="sourceLineNo">742</span>        LoadedFile f = cache.get(page);<a name="line.742"></a>
+<span class="sourceLineNo">743</span>        resolved = f != null;<a name="line.743"></a>
+<span class="sourceLineNo">744</span>      }<a name="line.744"></a>
+<span class="sourceLineNo">745</span>    }<a name="line.745"></a>
+<span class="sourceLineNo">746</span>      <a name="line.746"></a>
+<span class="sourceLineNo">747</span>    if (resolved)<a name="line.747"></a>
+<span class="sourceLineNo">748</span>      return false;<a name="line.748"></a>
+<span class="sourceLineNo">749</span>    else {<a name="line.749"></a>
+<span class="sourceLineNo">750</span>      messages.add(new ValidationMessage(Source.Publisher, IssueType.NOTFOUND, filename+(path == null ? "" : "#"+path+(loc == null ? "" : " at "+loc.toString())), "The image source '"+ref+"' cannot be resolved"+tgtList, IssueSeverity.ERROR).setLocationLink(uuid == null ? null : filename+"#"+uuid));<a name="line.750"></a>
+<span class="sourceLineNo">751</span>      return true;<a name="line.751"></a>
+<span class="sourceLineNo">752</span>    } <a name="line.752"></a>
+<span class="sourceLineNo">753</span>  }<a name="line.753"></a>
+<span class="sourceLineNo">754</span><a name="line.754"></a>
+<span class="sourceLineNo">755</span>  public void addLinkToCheck(String source, String link, String text) {<a name="line.755"></a>
+<span class="sourceLineNo">756</span>    otherlinks.add(new StringPair(source, link, text));<a name="line.756"></a>
+<span class="sourceLineNo">757</span>    <a name="line.757"></a>
+<span class="sourceLineNo">758</span>  }<a name="line.758"></a>
+<span class="sourceLineNo">759</span><a name="line.759"></a>
+<span class="sourceLineNo">760</span>  public int total() {<a name="line.760"></a>
+<span class="sourceLineNo">761</span>    return cache.size();<a name="line.761"></a>
+<span class="sourceLineNo">762</span>  }<a name="line.762"></a>
+<span class="sourceLineNo">763</span><a name="line.763"></a>
+<span class="sourceLineNo">764</span>  public int links() {<a name="line.764"></a>
+<span class="sourceLineNo">765</span>    return links;<a name="line.765"></a>
+<span class="sourceLineNo">766</span>  }<a name="line.766"></a>
+<span class="sourceLineNo">767</span><a name="line.767"></a>
+<span class="sourceLineNo">768</span>  public static void main(String[] args) throws Exception {<a name="line.768"></a>
+<span class="sourceLineNo">769</span>    HTLMLInspector inspector = new HTLMLInspector(args[0], null, null, "http://hl7.org/fhir/us/core", "hl7.fhir.us.core");<a name="line.769"></a>
+<span class="sourceLineNo">770</span>    inspector.setStrict(false);<a name="line.770"></a>
+<span class="sourceLineNo">771</span>    List&lt;ValidationMessage&gt; linkmsgs = inspector.check("test text");<a name="line.771"></a>
+<span class="sourceLineNo">772</span>    int bl = 0;<a name="line.772"></a>
+<span class="sourceLineNo">773</span>    int lf = 0;<a name="line.773"></a>
+<span class="sourceLineNo">774</span>    for (ValidationMessage m : linkmsgs) {<a name="line.774"></a>
+<span class="sourceLineNo">775</span>      if ((m.getLevel() == IssueSeverity.ERROR) || (m.getLevel() == IssueSeverity.FATAL)) {<a name="line.775"></a>
+<span class="sourceLineNo">776</span>        if (m.getType() == IssueType.NOTFOUND)<a name="line.776"></a>
+<span class="sourceLineNo">777</span>          bl++;<a name="line.777"></a>
+<span class="sourceLineNo">778</span>        else<a name="line.778"></a>
+<span class="sourceLineNo">779</span>          lf++;<a name="line.779"></a>
+<span class="sourceLineNo">780</span>      } <a name="line.780"></a>
+<span class="sourceLineNo">781</span>    }<a name="line.781"></a>
+<span class="sourceLineNo">782</span>    System.out.println("  ... "+Integer.toString(inspector.total())+" html "+checkPlural("file", inspector.total())+", "+Integer.toString(lf)+" "+checkPlural("page", lf)+" invalid xhtml ("+(inspector.total() == 0 ? "" : Integer.toString((lf*100)/inspector.total())+"%)"));<a name="line.782"></a>
+<span class="sourceLineNo">783</span>    System.out.println("  ... "+Integer.toString(inspector.links())+" "+checkPlural("link", inspector.links())+", "+Integer.toString(bl)+" broken "+checkPlural("link", lf)+" ("+(inspector.links() == 0 ? "" : Integer.toString((bl*100)/inspector.links())+"%)"));<a name="line.783"></a>
+<span class="sourceLineNo">784</span>    <a name="line.784"></a>
+<span class="sourceLineNo">785</span>    System.out.println("");<a name="line.785"></a>
+<span class="sourceLineNo">786</span>    <a name="line.786"></a>
+<span class="sourceLineNo">787</span>    for (ValidationMessage m : linkmsgs) <a name="line.787"></a>
+<span class="sourceLineNo">788</span>      if ((m.getLevel() == IssueSeverity.ERROR) || (m.getLevel() == IssueSeverity.FATAL)) <a name="line.788"></a>
+<span class="sourceLineNo">789</span>        System.out.println(m.summary());<a name="line.789"></a>
+<span class="sourceLineNo">790</span>  }<a name="line.790"></a>
+<span class="sourceLineNo">791</span><a name="line.791"></a>
+<span class="sourceLineNo">792</span>  private static String checkPlural(String word, int c) {<a name="line.792"></a>
+<span class="sourceLineNo">793</span>    return c == 1 ? word : Utilities.pluralizeMe(word);<a name="line.793"></a>
+<span class="sourceLineNo">794</span>  }<a name="line.794"></a>
+<span class="sourceLineNo">795</span><a name="line.795"></a>
+<span class="sourceLineNo">796</span>  public List&lt;String&gt; getManual() {<a name="line.796"></a>
+<span class="sourceLineNo">797</span>    return manual;<a name="line.797"></a>
+<span class="sourceLineNo">798</span>  }<a name="line.798"></a>
+<span class="sourceLineNo">799</span><a name="line.799"></a>
+<span class="sourceLineNo">800</span>  public void setManual(List&lt;String&gt; manual) {<a name="line.800"></a>
+<span class="sourceLineNo">801</span>    this.manual = manual;<a name="line.801"></a>
+<span class="sourceLineNo">802</span>  }<a name="line.802"></a>
+<span class="sourceLineNo">803</span><a name="line.803"></a>
+<span class="sourceLineNo">804</span>  public boolean isStrict() {<a name="line.804"></a>
+<span class="sourceLineNo">805</span>    return strict;<a name="line.805"></a>
+<span class="sourceLineNo">806</span>  }<a name="line.806"></a>
+<span class="sourceLineNo">807</span><a name="line.807"></a>
+<span class="sourceLineNo">808</span>  public void setStrict(boolean strict) {<a name="line.808"></a>
+<span class="sourceLineNo">809</span>    this.strict = strict;<a name="line.809"></a>
+<span class="sourceLineNo">810</span>  }<a name="line.810"></a>
+<span class="sourceLineNo">811</span><a name="line.811"></a>
+<span class="sourceLineNo">812</span>  public  List&lt;SpecMapManager&gt; getSpecMaps() {<a name="line.812"></a>
+<span class="sourceLineNo">813</span>    return specs;<a name="line.813"></a>
+<span class="sourceLineNo">814</span>  }<a name="line.814"></a>
+<span class="sourceLineNo">815</span><a name="line.815"></a>
+<span class="sourceLineNo">816</span>  public List&lt;String&gt; getIgs() {<a name="line.816"></a>
+<span class="sourceLineNo">817</span>    return igs;<a name="line.817"></a>
+<span class="sourceLineNo">818</span>  }<a name="line.818"></a>
+<span class="sourceLineNo">819</span><a name="line.819"></a>
+<span class="sourceLineNo">820</span>  public void setPcm(FilesystemPackageCacheManager pcm) {<a name="line.820"></a>
+<span class="sourceLineNo">821</span>    this.pcm = pcm; <a name="line.821"></a>
+<span class="sourceLineNo">822</span>  }<a name="line.822"></a>
+<span class="sourceLineNo">823</span><a name="line.823"></a>
+<span class="sourceLineNo">824</span>  public List&lt;String&gt; getExemptHtmlPatterns() {<a name="line.824"></a>
+<span class="sourceLineNo">825</span>    return exemptHtmlPatterns;<a name="line.825"></a>
+<span class="sourceLineNo">826</span>  }<a name="line.826"></a>
+<span class="sourceLineNo">827</span><a name="line.827"></a>
+<span class="sourceLineNo">828</span>  public boolean isMissingPublishBox() {<a name="line.828"></a>
+<span class="sourceLineNo">829</span>    return missingPublishBox;<a name="line.829"></a>
+<span class="sourceLineNo">830</span>  }<a name="line.830"></a>
+<span class="sourceLineNo">831</span><a name="line.831"></a>
+<span class="sourceLineNo">832</span>  public Set&lt;String&gt; getExceptions() {<a name="line.832"></a>
+<span class="sourceLineNo">833</span>    return exceptions;<a name="line.833"></a>
+<span class="sourceLineNo">834</span>  }<a name="line.834"></a>
+<span class="sourceLineNo">835</span><a name="line.835"></a>
+<span class="sourceLineNo">836</span>  public String getMissingPublishboxSummary() {<a name="line.836"></a>
+<span class="sourceLineNo">837</span>    if (missingPublishBoxList.size() &gt; 10) {<a name="line.837"></a>
+<span class="sourceLineNo">838</span>      return Integer.toString(missingPublishBoxList.size())+" files";<a name="line.838"></a>
+<span class="sourceLineNo">839</span>    } else {<a name="line.839"></a>
+<span class="sourceLineNo">840</span>      return missingPublishBoxList.toString();<a name="line.840"></a>
+<span class="sourceLineNo">841</span>    }<a name="line.841"></a>
+<span class="sourceLineNo">842</span>  }<a name="line.842"></a>
+<span class="sourceLineNo">843</span><a name="line.843"></a>
+<span class="sourceLineNo">844</span><a name="line.844"></a>
+<span class="sourceLineNo">845</span>  // adapted from anchor.min, which is used to generate these things on the flt <a name="line.845"></a>
+<span class="sourceLineNo">846</span>  private String urlify(String a) {<a name="line.846"></a>
+<span class="sourceLineNo">847</span>    String repl = "-&amp; +$,:;=?@\"#{}()[]|^~[`%!'&lt;&gt;].*";<a name="line.847"></a>
+<span class="sourceLineNo">848</span>    String elim = "/\\";<a name="line.848"></a>
+<span class="sourceLineNo">849</span>    StringBuilder b = new StringBuilder();<a name="line.849"></a>
+<span class="sourceLineNo">850</span>    boolean nextDash = false;<a name="line.850"></a>
+<span class="sourceLineNo">851</span>    for (char ch : a.toCharArray()) {<a name="line.851"></a>
+<span class="sourceLineNo">852</span>      if (elim.indexOf(ch) == -1) {<a name="line.852"></a>
+<span class="sourceLineNo">853</span>        if (repl.indexOf(ch) == -1) {<a name="line.853"></a>
+<span class="sourceLineNo">854</span>          if (nextDash) {<a name="line.854"></a>
+<span class="sourceLineNo">855</span>            b.append("-");<a name="line.855"></a>
+<span class="sourceLineNo">856</span>          }<a name="line.856"></a>
+<span class="sourceLineNo">857</span>          nextDash = false;<a name="line.857"></a>
+<span class="sourceLineNo">858</span>          b.append(Character.toLowerCase(ch));<a name="line.858"></a>
+<span class="sourceLineNo">859</span>        } else {<a name="line.859"></a>
+<span class="sourceLineNo">860</span>          nextDash = true;<a name="line.860"></a>
+<span class="sourceLineNo">861</span>        }<a name="line.861"></a>
+<span class="sourceLineNo">862</span>      }<a name="line.862"></a>
+<span class="sourceLineNo">863</span>    }<a name="line.863"></a>
+<span class="sourceLineNo">864</span>    String s = b.toString().trim();<a name="line.864"></a>
+<span class="sourceLineNo">865</span>    return s;<a name="line.865"></a>
+<span class="sourceLineNo">866</span>  }<a name="line.866"></a>
+<span class="sourceLineNo">867</span>  <a name="line.867"></a>
+<span class="sourceLineNo">868</span>}<a name="line.868"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

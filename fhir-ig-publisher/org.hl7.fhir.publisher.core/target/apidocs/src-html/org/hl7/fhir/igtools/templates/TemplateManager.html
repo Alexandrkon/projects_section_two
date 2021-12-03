@@ -1,0 +1,370 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package org.hl7.fhir.igtools.templates;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>/*-<a name="line.3"></a>
+<span class="sourceLineNo">004</span> * #%L<a name="line.4"></a>
+<span class="sourceLineNo">005</span> * org.hl7.fhir.publisher.core<a name="line.5"></a>
+<span class="sourceLineNo">006</span> * %%<a name="line.6"></a>
+<span class="sourceLineNo">007</span> * Copyright (C) 2014 - 2019 Health Level 7<a name="line.7"></a>
+<span class="sourceLineNo">008</span> * %%<a name="line.8"></a>
+<span class="sourceLineNo">009</span> * Licensed under the Apache License, Version 2.0 (the "License");<a name="line.9"></a>
+<span class="sourceLineNo">010</span> * you may not use this file except in compliance with the License.<a name="line.10"></a>
+<span class="sourceLineNo">011</span> * You may obtain a copy of the License at<a name="line.11"></a>
+<span class="sourceLineNo">012</span> * <a name="line.12"></a>
+<span class="sourceLineNo">013</span> *      http://www.apache.org/licenses/LICENSE-2.0<a name="line.13"></a>
+<span class="sourceLineNo">014</span> * <a name="line.14"></a>
+<span class="sourceLineNo">015</span> * Unless required by applicable law or agreed to in writing, software<a name="line.15"></a>
+<span class="sourceLineNo">016</span> * distributed under the License is distributed on an "AS IS" BASIS,<a name="line.16"></a>
+<span class="sourceLineNo">017</span> * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<a name="line.17"></a>
+<span class="sourceLineNo">018</span> * See the License for the specific language governing permissions and<a name="line.18"></a>
+<span class="sourceLineNo">019</span> * limitations under the License.<a name="line.19"></a>
+<span class="sourceLineNo">020</span> * #L%<a name="line.20"></a>
+<span class="sourceLineNo">021</span> */<a name="line.21"></a>
+<span class="sourceLineNo">022</span><a name="line.22"></a>
+<span class="sourceLineNo">023</span><a name="line.23"></a>
+<span class="sourceLineNo">024</span>import java.io.File;<a name="line.24"></a>
+<span class="sourceLineNo">025</span>import java.io.FileInputStream;<a name="line.25"></a>
+<span class="sourceLineNo">026</span>import java.io.IOException;<a name="line.26"></a>
+<span class="sourceLineNo">027</span>import java.io.InputStream;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>import java.net.HttpURLConnection;<a name="line.28"></a>
+<span class="sourceLineNo">029</span>import java.net.URL;<a name="line.29"></a>
+<span class="sourceLineNo">030</span>import java.util.ArrayList;<a name="line.30"></a>
+<span class="sourceLineNo">031</span>import java.util.HashSet;<a name="line.31"></a>
+<span class="sourceLineNo">032</span>import java.util.List;<a name="line.32"></a>
+<span class="sourceLineNo">033</span>import java.util.Set;<a name="line.33"></a>
+<span class="sourceLineNo">034</span><a name="line.34"></a>
+<span class="sourceLineNo">035</span>import org.hl7.fhir.exceptions.FHIRException;<a name="line.35"></a>
+<span class="sourceLineNo">036</span>import org.hl7.fhir.r5.context.IWorkerContext.ILoggingService;<a name="line.36"></a>
+<span class="sourceLineNo">037</span>import org.hl7.fhir.utilities.TextFile;<a name="line.37"></a>
+<span class="sourceLineNo">038</span>import org.hl7.fhir.utilities.Utilities;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>import org.hl7.fhir.utilities.json.JsonTrackingParser;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>import org.hl7.fhir.utilities.npm.FilesystemPackageCacheManager;<a name="line.40"></a>
+<span class="sourceLineNo">041</span>import org.hl7.fhir.utilities.npm.NpmPackage;<a name="line.41"></a>
+<span class="sourceLineNo">042</span>import org.hl7.fhir.utilities.npm.NpmPackage.NpmPackageFolder;<a name="line.42"></a>
+<span class="sourceLineNo">043</span>import org.hl7.fhir.utilities.npm.PackageGenerator.PackageType;<a name="line.43"></a>
+<span class="sourceLineNo">044</span><a name="line.44"></a>
+<span class="sourceLineNo">045</span>import com.google.gson.Gson;<a name="line.45"></a>
+<span class="sourceLineNo">046</span>import com.google.gson.GsonBuilder;<a name="line.46"></a>
+<span class="sourceLineNo">047</span>import com.google.gson.JsonElement;<a name="line.47"></a>
+<span class="sourceLineNo">048</span>import com.google.gson.JsonObject;<a name="line.48"></a>
+<span class="sourceLineNo">049</span><a name="line.49"></a>
+<span class="sourceLineNo">050</span>public class TemplateManager {<a name="line.50"></a>
+<span class="sourceLineNo">051</span><a name="line.51"></a>
+<span class="sourceLineNo">052</span>  private FilesystemPackageCacheManager pcm;<a name="line.52"></a>
+<span class="sourceLineNo">053</span>  private ILoggingService logger;<a name="line.53"></a>
+<span class="sourceLineNo">054</span>  private List&lt;JsonObject&gt; configs = new ArrayList&lt;JsonObject&gt;();<a name="line.54"></a>
+<span class="sourceLineNo">055</span>  boolean canExecute;<a name="line.55"></a>
+<span class="sourceLineNo">056</span>  String templateThatCantExecute;<a name="line.56"></a>
+<span class="sourceLineNo">057</span>  String templateReason;<a name="line.57"></a>
+<span class="sourceLineNo">058</span>  String ghUrl;<a name="line.58"></a>
+<span class="sourceLineNo">059</span>  List&lt;String&gt; templateList = new ArrayList&lt;&gt;();<a name="line.59"></a>
+<span class="sourceLineNo">060</span><a name="line.60"></a>
+<span class="sourceLineNo">061</span>  public TemplateManager(FilesystemPackageCacheManager pcm, ILoggingService logger, String ghUrl) {<a name="line.61"></a>
+<span class="sourceLineNo">062</span>    this.pcm = pcm;<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    this.logger = logger;<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    this.ghUrl = ghUrl;<a name="line.64"></a>
+<span class="sourceLineNo">065</span>  }<a name="line.65"></a>
+<span class="sourceLineNo">066</span><a name="line.66"></a>
+<span class="sourceLineNo">067</span>  public Template loadTemplate(String template, String rootFolder, String packageId, boolean autoMode) throws FHIRException, IOException {<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    String templateDir = Utilities.path(rootFolder, "template");<a name="line.68"></a>
+<span class="sourceLineNo">069</span>    boolean inPlace = template.equals("#template");<a name="line.69"></a>
+<span class="sourceLineNo">070</span>    if (!inPlace) {<a name="line.70"></a>
+<span class="sourceLineNo">071</span>      Utilities.createDirectory(templateDir);<a name="line.71"></a>
+<span class="sourceLineNo">072</span>      Utilities.clearDirectory(templateDir);<a name="line.72"></a>
+<span class="sourceLineNo">073</span>    };<a name="line.73"></a>
+<span class="sourceLineNo">074</span>    List&lt;String&gt; scriptTemplates = new ArrayList&lt;String&gt;();<a name="line.74"></a>
+<span class="sourceLineNo">075</span>    <a name="line.75"></a>
+<span class="sourceLineNo">076</span>    canExecute = true;<a name="line.76"></a>
+<span class="sourceLineNo">077</span>    NpmPackage npm;<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    if (!inPlace) {<a name="line.78"></a>
+<span class="sourceLineNo">079</span>      installTemplate(template, rootFolder, templateDir, scriptTemplates, new ArrayList&lt;String&gt;(), 0);<a name="line.79"></a>
+<span class="sourceLineNo">080</span>    }<a name="line.80"></a>
+<span class="sourceLineNo">081</span>    <a name="line.81"></a>
+<span class="sourceLineNo">082</span>    if (!autoMode) {<a name="line.82"></a>
+<span class="sourceLineNo">083</span>      canExecute = true; // nah, we don't care. locally, we'll build whatever people give us<a name="line.83"></a>
+<span class="sourceLineNo">084</span>    }<a name="line.84"></a>
+<span class="sourceLineNo">085</span>    if (!canExecute) {<a name="line.85"></a>
+<span class="sourceLineNo">086</span>      logger.logMessage("IG template '"+templateThatCantExecute+"' is not trusted.  No scripts will be executed");<a name="line.86"></a>
+<span class="sourceLineNo">087</span>    }<a name="line.87"></a>
+<span class="sourceLineNo">088</span>    return new Template(rootFolder, canExecute, templateThatCantExecute, templateReason);<a name="line.88"></a>
+<span class="sourceLineNo">089</span>  }<a name="line.89"></a>
+<span class="sourceLineNo">090</span><a name="line.90"></a>
+<span class="sourceLineNo">091</span>  private void installTemplate(String template, String rootFolder, String templateDir, List&lt;String&gt; scriptIds, ArrayList&lt;String&gt; loadedIds, int level) throws FHIRException, IOException {<a name="line.91"></a>
+<span class="sourceLineNo">092</span>    logger.logMessage(Utilities.padLeft("", ' ', level) + "Load Template from "+template);<a name="line.92"></a>
+<span class="sourceLineNo">093</span>    NpmPackage npm = loadPackage(template, rootFolder);<a name="line.93"></a>
+<span class="sourceLineNo">094</span>    if (!npm.isType(PackageType.TEMPLATE))<a name="line.94"></a>
+<span class="sourceLineNo">095</span>      throw new FHIRException("The referenced package '"+template+"' does not have the correct type - is "+npm.type()+" but should be a template");<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    templateList.add(npm.name()+"#"+npm.version());<a name="line.96"></a>
+<span class="sourceLineNo">097</span>    loadedIds.add(npm.name());<a name="line.97"></a>
+<span class="sourceLineNo">098</span>    if (npm.getNpm().has("base")) {<a name="line.98"></a>
+<span class="sourceLineNo">099</span>      String baseTemplate = npm.getNpm().get("base").getAsString();<a name="line.99"></a>
+<span class="sourceLineNo">100</span>      if (loadedIds.contains(baseTemplate)) {<a name="line.100"></a>
+<span class="sourceLineNo">101</span>        loadedIds.add(baseTemplate);<a name="line.101"></a>
+<span class="sourceLineNo">102</span>        throw new FHIRException("Template parents recurse: " + String.join("-&gt;", loadedIds));<a name="line.102"></a>
+<span class="sourceLineNo">103</span>      }<a name="line.103"></a>
+<span class="sourceLineNo">104</span>      if (!npm.getNpm().has("dependencies") || !npm.getNpm().getAsJsonObject("dependencies").has(baseTemplate)) {<a name="line.104"></a>
+<span class="sourceLineNo">105</span>        throw new FHIRException("Unable to resolve "+baseTemplate+" because it is not listed in the dependencies");<a name="line.105"></a>
+<span class="sourceLineNo">106</span>      }<a name="line.106"></a>
+<span class="sourceLineNo">107</span>      String ver = npm.getNpm().getAsJsonObject("dependencies").get(baseTemplate).getAsString();<a name="line.107"></a>
+<span class="sourceLineNo">108</span>      installTemplate(baseTemplate+"#"+ver, rootFolder, templateDir, scriptIds, loadedIds, level + 1);<a name="line.108"></a>
+<span class="sourceLineNo">109</span>    }<a name="line.109"></a>
+<span class="sourceLineNo">110</span>    // npm.debugDump("template");<a name="line.110"></a>
+<span class="sourceLineNo">111</span>    <a name="line.111"></a>
+<span class="sourceLineNo">112</span>    npm.unPackWithAppend(templateDir);<a name="line.112"></a>
+<span class="sourceLineNo">113</span>    Set&lt;String&gt; ext = new HashSet&lt;&gt;();<a name="line.113"></a>
+<span class="sourceLineNo">114</span>    boolean noScripts = true;<a name="line.114"></a>
+<span class="sourceLineNo">115</span>    JsonObject config = null;<a name="line.115"></a>
+<span class="sourceLineNo">116</span>    if (npm.hasFile(Utilities.path("package", "$root"), "config.json")) {<a name="line.116"></a>
+<span class="sourceLineNo">117</span>      try {<a name="line.117"></a>
+<span class="sourceLineNo">118</span>        config = JsonTrackingParser.parseJson(npm.load(Utilities.path("package", "$root"), "config.json"));<a name="line.118"></a>
+<span class="sourceLineNo">119</span>      } catch (Exception e) {<a name="line.119"></a>
+<span class="sourceLineNo">120</span>        TextFile.streamToFile(npm.load(Utilities.path("package", "$root"), "config.json"), Utilities.path("[tmp]", npm.name()+"#"+npm.version()+"$config.json"));<a name="line.120"></a>
+<span class="sourceLineNo">121</span>        throw new FHIRException("Error parsing "+npm.name()+"#"+npm.version()+"#"+Utilities.path("package", "$root", "config.json")+": "+e.getMessage(), e);<a name="line.121"></a>
+<span class="sourceLineNo">122</span>      }<a name="line.122"></a>
+<span class="sourceLineNo">123</span>      configs.add(config);<a name="line.123"></a>
+<span class="sourceLineNo">124</span>      noScripts = !config.has("script") &amp;&amp; !config.has("targets");<a name="line.124"></a>
+<span class="sourceLineNo">125</span>    }  <a name="line.125"></a>
+<span class="sourceLineNo">126</span>    if (noScripts) {<a name="line.126"></a>
+<span class="sourceLineNo">127</span>      for (NpmPackageFolder f : npm.getFolders().values()) {<a name="line.127"></a>
+<span class="sourceLineNo">128</span>        for (String n : f.listFiles()) {<a name="line.128"></a>
+<span class="sourceLineNo">129</span>          String s = extension(n);<a name="line.129"></a>
+<span class="sourceLineNo">130</span>          if (!Utilities.existsInList(s, ".html", ".css", ".png", ".gif", ".oet", ".json", ".xml", ".ico", ".jpg", ".md", ".ini", ".eot", ".otf", ".svg", ".ttf", ".woff", ".txt", ".yml", ".gitignore")) {<a name="line.130"></a>
+<span class="sourceLineNo">131</span>            noScripts = false;<a name="line.131"></a>
+<span class="sourceLineNo">132</span>            ext.add(s);<a name="line.132"></a>
+<span class="sourceLineNo">133</span>            break;<a name="line.133"></a>
+<span class="sourceLineNo">134</span>          }<a name="line.134"></a>
+<span class="sourceLineNo">135</span>        }<a name="line.135"></a>
+<span class="sourceLineNo">136</span>      }<a name="line.136"></a>
+<span class="sourceLineNo">137</span>    }<a name="line.137"></a>
+<span class="sourceLineNo">138</span>    if (!noScripts) {<a name="line.138"></a>
+<span class="sourceLineNo">139</span>      checkTemplateId(template, npm.name(), config == null ? "has file extensions: "+ ext : config.has("script") ? "template nominates a script" : <a name="line.139"></a>
+<span class="sourceLineNo">140</span>        config.has("targets") ? "template nominates ant targets" : "has file extensions: "+ ext);<a name="line.140"></a>
+<span class="sourceLineNo">141</span>    }<a name="line.141"></a>
+<span class="sourceLineNo">142</span>    if (level==0 &amp;&amp; configs.size() &gt; 1) {<a name="line.142"></a>
+<span class="sourceLineNo">143</span>      config = configs.get(0);<a name="line.143"></a>
+<span class="sourceLineNo">144</span>      for (int i=1;i&lt;configs.size(); i++) {<a name="line.144"></a>
+<span class="sourceLineNo">145</span>        applyConfigChanges(config, configs.get(i));<a name="line.145"></a>
+<span class="sourceLineNo">146</span>      }<a name="line.146"></a>
+<span class="sourceLineNo">147</span>      Gson gson = new GsonBuilder().setPrettyPrinting().create();<a name="line.147"></a>
+<span class="sourceLineNo">148</span>      String configString = gson.toJson(config);<a name="line.148"></a>
+<span class="sourceLineNo">149</span>      String configPath = Utilities.path(templateDir, "config.json");<a name="line.149"></a>
+<span class="sourceLineNo">150</span>      TextFile.stringToFile(configString, configPath, false);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>    }<a name="line.151"></a>
+<span class="sourceLineNo">152</span>  }<a name="line.152"></a>
+<span class="sourceLineNo">153</span>  <a name="line.153"></a>
+<span class="sourceLineNo">154</span>  private void applyConfigChanges(JsonObject baseConfig, JsonObject deltaConfig) throws FHIRException {<a name="line.154"></a>
+<span class="sourceLineNo">155</span>    for (String key : deltaConfig.keySet()) {<a name="line.155"></a>
+<span class="sourceLineNo">156</span>      if (baseConfig.has(key)) {<a name="line.156"></a>
+<span class="sourceLineNo">157</span>        JsonElement baseElement = baseConfig.get(key);<a name="line.157"></a>
+<span class="sourceLineNo">158</span>        JsonElement newElement = deltaConfig.get(key);<a name="line.158"></a>
+<span class="sourceLineNo">159</span>        if (baseElement.isJsonArray()!=newElement.isJsonArray() || baseElement.isJsonObject()!=newElement.isJsonObject() || baseElement.isJsonPrimitive()!=newElement.isJsonPrimitive())<a name="line.159"></a>
+<span class="sourceLineNo">160</span>          throw new FHIRException("When overriding template config file, element " + key + " has a different JSON type in the base config file (" + baseElement + ") than it does in the overriding config file (" + newElement + ").");<a name="line.160"></a>
+<span class="sourceLineNo">161</span>        if (newElement.isJsonObject()) {<a name="line.161"></a>
+<span class="sourceLineNo">162</span>          applyConfigChanges(baseElement.getAsJsonObject(), deltaConfig.get(key).getAsJsonObject());<a name="line.162"></a>
+<span class="sourceLineNo">163</span>        } else if (newElement.isJsonArray()) {<a name="line.163"></a>
+<span class="sourceLineNo">164</span>          baseElement.getAsJsonArray().addAll(newElement.getAsJsonArray());<a name="line.164"></a>
+<span class="sourceLineNo">165</span>        } else {<a name="line.165"></a>
+<span class="sourceLineNo">166</span>          baseConfig.remove(key);<a name="line.166"></a>
+<span class="sourceLineNo">167</span>          baseConfig.add(key, deltaConfig.get(key));<a name="line.167"></a>
+<span class="sourceLineNo">168</span>        }<a name="line.168"></a>
+<span class="sourceLineNo">169</span>      } else {<a name="line.169"></a>
+<span class="sourceLineNo">170</span>        baseConfig.add(key, deltaConfig.get(key));<a name="line.170"></a>
+<span class="sourceLineNo">171</span>      }<a name="line.171"></a>
+<span class="sourceLineNo">172</span>    }<a name="line.172"></a>
+<span class="sourceLineNo">173</span>  }<a name="line.173"></a>
+<span class="sourceLineNo">174</span><a name="line.174"></a>
+<span class="sourceLineNo">175</span>  private String extension(String n) {<a name="line.175"></a>
+<span class="sourceLineNo">176</span>    if (!n.contains(".")) {<a name="line.176"></a>
+<span class="sourceLineNo">177</span>      return "";<a name="line.177"></a>
+<span class="sourceLineNo">178</span>    }<a name="line.178"></a>
+<span class="sourceLineNo">179</span>    return n.substring(n.lastIndexOf("."));<a name="line.179"></a>
+<span class="sourceLineNo">180</span>  }<a name="line.180"></a>
+<span class="sourceLineNo">181</span><a name="line.181"></a>
+<span class="sourceLineNo">182</span>  /**<a name="line.182"></a>
+<span class="sourceLineNo">183</span>   * If we get to here, we've found a template with active content. This code checks that it's authorised.<a name="line.183"></a>
+<span class="sourceLineNo">184</span>   * <a name="line.184"></a>
+<span class="sourceLineNo">185</span>   * If the IG is being run locally, we don't care - we'll always run it (see code in loadTemplate)<a name="line.185"></a>
+<span class="sourceLineNo">186</span>   * But on the ci-build, we only allow scripts that are approved by the FHIR product director<a name="line.186"></a>
+<span class="sourceLineNo">187</span>   * (as enforced by this code here).<a name="line.187"></a>
+<span class="sourceLineNo">188</span>   * <a name="line.188"></a>
+<span class="sourceLineNo">189</span>   * We only allow scripts from packages loaded by package id, for known packages <a name="line.189"></a>
+<span class="sourceLineNo">190</span>   * (the only way to fiddle with packages loaded by id is through the code)<a name="line.190"></a>
+<span class="sourceLineNo">191</span>   * <a name="line.191"></a>
+<span class="sourceLineNo">192</span>   * todo:<a name="line.192"></a>
+<span class="sourceLineNo">193</span>   * - cross-check that the package id matches the github id (needs change on the ci-build infrastructure)<a name="line.193"></a>
+<span class="sourceLineNo">194</span>   *   this change would check that someone hasn't run a different template through the ci-build with the same id<a name="line.194"></a>
+<span class="sourceLineNo">195</span>   *   <a name="line.195"></a>
+<span class="sourceLineNo">196</span>   * @param template<a name="line.196"></a>
+<span class="sourceLineNo">197</span>   * @param packageId<a name="line.197"></a>
+<span class="sourceLineNo">198</span>   * @return<a name="line.198"></a>
+<span class="sourceLineNo">199</span>   */<a name="line.199"></a>
+<span class="sourceLineNo">200</span>  private void checkTemplateId(String template, String packageId, String reason) {<a name="line.200"></a>
+<span class="sourceLineNo">201</span>    String t = template.contains("#") ? template.substring(0, template.indexOf("#")) : template;<a name="line.201"></a>
+<span class="sourceLineNo">202</span>    if (!t.equals(packageId)) {<a name="line.202"></a>
+<span class="sourceLineNo">203</span>      canExecute = false;<a name="line.203"></a>
+<span class="sourceLineNo">204</span>      templateThatCantExecute = template;<a name="line.204"></a>
+<span class="sourceLineNo">205</span>      templateReason = reason;<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    } else if (!Utilities.existsInList(packageId, <a name="line.206"></a>
+<span class="sourceLineNo">207</span>        // if you are proposing to change this list, discuss with FHIR Product Director first<a name="line.207"></a>
+<span class="sourceLineNo">208</span>        "fhir.test.template", <a name="line.208"></a>
+<span class="sourceLineNo">209</span>        "fhir.base.template",<a name="line.209"></a>
+<span class="sourceLineNo">210</span>        "hl7.base.template",<a name="line.210"></a>
+<span class="sourceLineNo">211</span>        "hl7.fhir.template",<a name="line.211"></a>
+<span class="sourceLineNo">212</span>        "hl7.au.base.template",<a name="line.212"></a>
+<span class="sourceLineNo">213</span>        "hl7.au.fhir.template",<a name="line.213"></a>
+<span class="sourceLineNo">214</span>        "hl7.utg.template",<a name="line.214"></a>
+<span class="sourceLineNo">215</span>        "hl7.be.fhir.template",<a name="line.215"></a>
+<span class="sourceLineNo">216</span>        "hl7.cda.template",<a name="line.216"></a>
+<span class="sourceLineNo">217</span>        "hl7.davinci.template",<a name="line.217"></a>
+<span class="sourceLineNo">218</span>        "openhie.fhir.template",<a name="line.218"></a>
+<span class="sourceLineNo">219</span>        "ihe.fhir.template")) {<a name="line.219"></a>
+<span class="sourceLineNo">220</span>      canExecute = false;<a name="line.220"></a>
+<span class="sourceLineNo">221</span>      templateThatCantExecute = template;<a name="line.221"></a>
+<span class="sourceLineNo">222</span>      templateReason = reason;<a name="line.222"></a>
+<span class="sourceLineNo">223</span>    }<a name="line.223"></a>
+<span class="sourceLineNo">224</span>  }<a name="line.224"></a>
+<span class="sourceLineNo">225</span><a name="line.225"></a>
+<span class="sourceLineNo">226</span>  private boolean isTemplate(String url, String id, String template) {<a name="line.226"></a>
+<span class="sourceLineNo">227</span>    if (url.equals(template))<a name="line.227"></a>
+<span class="sourceLineNo">228</span>      return true;<a name="line.228"></a>
+<span class="sourceLineNo">229</span>    if (template.equals(id))<a name="line.229"></a>
+<span class="sourceLineNo">230</span>      return true;<a name="line.230"></a>
+<span class="sourceLineNo">231</span>    if (template.matches(FilesystemPackageCacheManager.PACKAGE_VERSION_REGEX) &amp;&amp; template.startsWith(id+"#"))<a name="line.231"></a>
+<span class="sourceLineNo">232</span>      return true;<a name="line.232"></a>
+<span class="sourceLineNo">233</span>    return false;<a name="line.233"></a>
+<span class="sourceLineNo">234</span>  }<a name="line.234"></a>
+<span class="sourceLineNo">235</span><a name="line.235"></a>
+<span class="sourceLineNo">236</span>  private NpmPackage loadPackage(String template, String rootFolder) throws FHIRException, IOException {<a name="line.236"></a>
+<span class="sourceLineNo">237</span>    try {<a name="line.237"></a>
+<span class="sourceLineNo">238</span>      if (template.startsWith("#")) {<a name="line.238"></a>
+<span class="sourceLineNo">239</span>        File f = new File(Utilities.path(rootFolder, template.substring(1)));<a name="line.239"></a>
+<span class="sourceLineNo">240</span>        if (f.exists() &amp;&amp; f.isDirectory()) {<a name="line.240"></a>
+<span class="sourceLineNo">241</span>          NpmPackage npm = NpmPackage.fromFolder(f.getAbsolutePath(), PackageType.TEMPLATE, "output", ".git");<a name="line.241"></a>
+<span class="sourceLineNo">242</span>          return npm;<a name="line.242"></a>
+<span class="sourceLineNo">243</span>        }<a name="line.243"></a>
+<span class="sourceLineNo">244</span>      }<a name="line.244"></a>
+<span class="sourceLineNo">245</span><a name="line.245"></a>
+<span class="sourceLineNo">246</span>      if (template.matches(FilesystemPackageCacheManager.PACKAGE_REGEX)) {<a name="line.246"></a>
+<span class="sourceLineNo">247</span>        return pcm.loadPackage(template, null);<a name="line.247"></a>
+<span class="sourceLineNo">248</span>      }<a name="line.248"></a>
+<span class="sourceLineNo">249</span>      if (template.matches(FilesystemPackageCacheManager.PACKAGE_VERSION_REGEX)) {<a name="line.249"></a>
+<span class="sourceLineNo">250</span>        String[] p = template.split("\\#");<a name="line.250"></a>
+<span class="sourceLineNo">251</span>        return pcm.loadPackage(p[0], p[1]);<a name="line.251"></a>
+<span class="sourceLineNo">252</span>      }<a name="line.252"></a>
+<span class="sourceLineNo">253</span>      File f = new File(template);<a name="line.253"></a>
+<span class="sourceLineNo">254</span>      if (!f.exists()) {<a name="line.254"></a>
+<span class="sourceLineNo">255</span>        f = new File(Utilities.path(rootFolder, template));<a name="line.255"></a>
+<span class="sourceLineNo">256</span>      }<a name="line.256"></a>
+<span class="sourceLineNo">257</span>      if (f.exists()) {<a name="line.257"></a>
+<span class="sourceLineNo">258</span>        if (f.isDirectory()) {<a name="line.258"></a>
+<span class="sourceLineNo">259</span>          return NpmPackage.fromFolder(f.getAbsolutePath());<a name="line.259"></a>
+<span class="sourceLineNo">260</span>        } else {<a name="line.260"></a>
+<span class="sourceLineNo">261</span>          return NpmPackage.fromPackage(new FileInputStream(template));<a name="line.261"></a>
+<span class="sourceLineNo">262</span>        }<a name="line.262"></a>
+<span class="sourceLineNo">263</span>      }<a name="line.263"></a>
+<span class="sourceLineNo">264</span>      if (template.startsWith("https://github.com") || template.startsWith("http://github.com")) {<a name="line.264"></a>
+<span class="sourceLineNo">265</span>        if (template.startsWith("http://github.com")) {<a name="line.265"></a>
+<span class="sourceLineNo">266</span>          template = template.replace("http://github.com", "https://github.com");<a name="line.266"></a>
+<span class="sourceLineNo">267</span>        }<a name="line.267"></a>
+<span class="sourceLineNo">268</span><a name="line.268"></a>
+<span class="sourceLineNo">269</span>        URL url = new URL(zipUrl(template));<a name="line.269"></a>
+<span class="sourceLineNo">270</span>        HttpURLConnection connection = (HttpURLConnection) url.openConnection();<a name="line.270"></a>
+<span class="sourceLineNo">271</span>        connection.setRequestMethod("GET");<a name="line.271"></a>
+<span class="sourceLineNo">272</span>        InputStream zip = connection.getInputStream();<a name="line.272"></a>
+<span class="sourceLineNo">273</span>        return NpmPackage.fromZip(zip, true, url.toString()); <a name="line.273"></a>
+<span class="sourceLineNo">274</span>      }<a name="line.274"></a>
+<span class="sourceLineNo">275</span>      throw new FHIRException("Unable to load template from "+template+" cannot find template. Use a github URL, a local directory, or #[folder] for a contained template");<a name="line.275"></a>
+<span class="sourceLineNo">276</span>    } catch (Exception e) {<a name="line.276"></a>
+<span class="sourceLineNo">277</span>      throw new FHIRException("Error loading template "+template+": "+e.getMessage(), e);<a name="line.277"></a>
+<span class="sourceLineNo">278</span>    }<a name="line.278"></a>
+<span class="sourceLineNo">279</span>  }<a name="line.279"></a>
+<span class="sourceLineNo">280</span><a name="line.280"></a>
+<span class="sourceLineNo">281</span>  private String zipUrl(String template) {<a name="line.281"></a>
+<span class="sourceLineNo">282</span>    if (!template.startsWith("https://github.com")) {<a name="line.282"></a>
+<span class="sourceLineNo">283</span>      throw new FHIRException("Cannot refer to a template by URL unless referring to a github repository: "+template);<a name="line.283"></a>
+<span class="sourceLineNo">284</span>    } else if (Utilities.charCount(template, '/') == 4) {<a name="line.284"></a>
+<span class="sourceLineNo">285</span>      return Utilities.pathURL(template, "archive", "master.zip");      <a name="line.285"></a>
+<span class="sourceLineNo">286</span>    } else if (Utilities.charCount(template, '/') == 6) {<a name="line.286"></a>
+<span class="sourceLineNo">287</span>      String[] p = template.split("\\/");<a name="line.287"></a>
+<span class="sourceLineNo">288</span>      return Utilities.pathURL("https://github.com", p[3], p[4], "archive", p[6]+".zip");      <a name="line.288"></a>
+<span class="sourceLineNo">289</span>    } else {<a name="line.289"></a>
+<span class="sourceLineNo">290</span>      throw new FHIRException("Template syntax in URL referring to a github repository was not understood: "+template);<a name="line.290"></a>
+<span class="sourceLineNo">291</span>    }<a name="line.291"></a>
+<span class="sourceLineNo">292</span>  }<a name="line.292"></a>
+<span class="sourceLineNo">293</span><a name="line.293"></a>
+<span class="sourceLineNo">294</span>  public List&lt;String&gt; listTemplates() {<a name="line.294"></a>
+<span class="sourceLineNo">295</span>    return templateList;<a name="line.295"></a>
+<span class="sourceLineNo">296</span>  }<a name="line.296"></a>
+<span class="sourceLineNo">297</span>  <a name="line.297"></a>
+<span class="sourceLineNo">298</span>}<a name="line.298"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package org.hl7.fhir.igtools.renderers;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import java.io.IOException;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.util.HashSet;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.util.List;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.util.Set;<a name="line.6"></a>
+<span class="sourceLineNo">007</span><a name="line.7"></a>
+<span class="sourceLineNo">008</span>import org.hl7.fhir.exceptions.FHIRException;<a name="line.8"></a>
+<span class="sourceLineNo">009</span>import org.hl7.fhir.igtools.templates.TemplateManager;<a name="line.9"></a>
+<span class="sourceLineNo">010</span>import org.hl7.fhir.r5.model.ImplementationGuide;<a name="line.10"></a>
+<span class="sourceLineNo">011</span>import org.hl7.fhir.r5.model.ImplementationGuide.ImplementationGuideDependsOnComponent;<a name="line.11"></a>
+<span class="sourceLineNo">012</span>import org.hl7.fhir.utilities.CommaSeparatedStringBuilder;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>import org.hl7.fhir.utilities.Utilities;<a name="line.13"></a>
+<span class="sourceLineNo">014</span>import org.hl7.fhir.utilities.VersionUtilities;<a name="line.14"></a>
+<span class="sourceLineNo">015</span>import org.hl7.fhir.utilities.npm.BasePackageCacheManager;<a name="line.15"></a>
+<span class="sourceLineNo">016</span>import org.hl7.fhir.utilities.npm.NpmPackage;<a name="line.16"></a>
+<span class="sourceLineNo">017</span>import org.hl7.fhir.utilities.npm.PackageHacker;<a name="line.17"></a>
+<span class="sourceLineNo">018</span>import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator;<a name="line.18"></a>
+<span class="sourceLineNo">019</span>import org.hl7.fhir.utilities.xhtml.NodeType;<a name="line.19"></a>
+<span class="sourceLineNo">020</span>import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.Row;<a name="line.20"></a>
+<span class="sourceLineNo">021</span>import org.hl7.fhir.utilities.xhtml.HierarchicalTableGenerator.TableModel;<a name="line.21"></a>
+<span class="sourceLineNo">022</span>import org.hl7.fhir.utilities.xhtml.XhtmlComposer;<a name="line.22"></a>
+<span class="sourceLineNo">023</span>import org.hl7.fhir.utilities.xhtml.XhtmlNode;<a name="line.23"></a>
+<span class="sourceLineNo">024</span><a name="line.24"></a>
+<span class="sourceLineNo">025</span>public class DependencyRenderer {<a name="line.25"></a>
+<span class="sourceLineNo">026</span><a name="line.26"></a>
+<span class="sourceLineNo">027</span>  private BasePackageCacheManager pcm;<a name="line.27"></a>
+<span class="sourceLineNo">028</span>  private String dstFolder;<a name="line.28"></a>
+<span class="sourceLineNo">029</span>  private Set&lt;String&gt; ids = new HashSet&lt;&gt;();<a name="line.29"></a>
+<span class="sourceLineNo">030</span>  private String fver;<a name="line.30"></a>
+<span class="sourceLineNo">031</span>  private String npmName;<a name="line.31"></a>
+<span class="sourceLineNo">032</span>  private TemplateManager templateManager;<a name="line.32"></a>
+<span class="sourceLineNo">033</span>  <a name="line.33"></a>
+<span class="sourceLineNo">034</span>  public DependencyRenderer(BasePackageCacheManager pcm, String dstFolder, String npmName, TemplateManager templateManager) {<a name="line.34"></a>
+<span class="sourceLineNo">035</span>    super();<a name="line.35"></a>
+<span class="sourceLineNo">036</span>    this.pcm = pcm;<a name="line.36"></a>
+<span class="sourceLineNo">037</span>    this.dstFolder = dstFolder;<a name="line.37"></a>
+<span class="sourceLineNo">038</span>    this.npmName = npmName;<a name="line.38"></a>
+<span class="sourceLineNo">039</span>    this.templateManager = templateManager;<a name="line.39"></a>
+<span class="sourceLineNo">040</span>  }<a name="line.40"></a>
+<span class="sourceLineNo">041</span><a name="line.41"></a>
+<span class="sourceLineNo">042</span>  public String render(ImplementationGuide ig) throws FHIRException, IOException {<a name="line.42"></a>
+<span class="sourceLineNo">043</span>    HierarchicalTableGenerator gen = new HierarchicalTableGenerator(dstFolder, true, true);<a name="line.43"></a>
+<span class="sourceLineNo">044</span>    TableModel model = createTable(gen);<a name="line.44"></a>
+<span class="sourceLineNo">045</span>    <a name="line.45"></a>
+<span class="sourceLineNo">046</span>    String realm = determineRealmForIg(ig.getPackageId());<a name="line.46"></a>
+<span class="sourceLineNo">047</span><a name="line.47"></a>
+<span class="sourceLineNo">048</span>    Row row = addBaseRow(gen, model, ig);<a name="line.48"></a>
+<span class="sourceLineNo">049</span>    for (ImplementationGuideDependsOnComponent d : ig.getDependsOn()) {<a name="line.49"></a>
+<span class="sourceLineNo">050</span>      try {<a name="line.50"></a>
+<span class="sourceLineNo">051</span>        NpmPackage p = resolve(d);<a name="line.51"></a>
+<span class="sourceLineNo">052</span>        addPackageRow(gen, row.getSubRows(), p, d.getVersion(), realm);<a name="line.52"></a>
+<span class="sourceLineNo">053</span>      } catch (Exception e) {<a name="line.53"></a>
+<span class="sourceLineNo">054</span>        addErrorRow(gen, row.getSubRows(), d.getPackageId(), d.getVersion(), d.getUri(), null, e.getMessage());<a name="line.54"></a>
+<span class="sourceLineNo">055</span>      }<a name="line.55"></a>
+<span class="sourceLineNo">056</span>    }<a name="line.56"></a>
+<span class="sourceLineNo">057</span>    // create the table<a name="line.57"></a>
+<span class="sourceLineNo">058</span>    // add the rows <a name="line.58"></a>
+<span class="sourceLineNo">059</span>    // render it       <a name="line.59"></a>
+<span class="sourceLineNo">060</span>    XhtmlNode x = gen.generate(model, dstFolder, 0, null);<a name="line.60"></a>
+<span class="sourceLineNo">061</span>    XhtmlNode div = new XhtmlNode(NodeType.Element, "div");<a name="line.61"></a>
+<span class="sourceLineNo">062</span>    div.add(x);<a name="line.62"></a>
+<span class="sourceLineNo">063</span>    div.add(makeTemplateTable());<a name="line.63"></a>
+<span class="sourceLineNo">064</span>    return new XhtmlComposer(false).compose(div);<a name="line.64"></a>
+<span class="sourceLineNo">065</span>  }<a name="line.65"></a>
+<span class="sourceLineNo">066</span><a name="line.66"></a>
+<span class="sourceLineNo">067</span>  private XhtmlNode makeTemplateTable() {<a name="line.67"></a>
+<span class="sourceLineNo">068</span>    XhtmlNode p = new XhtmlNode(NodeType.Element, "para");<a name="line.68"></a>
+<span class="sourceLineNo">069</span>    CommaSeparatedStringBuilder b = new CommaSeparatedStringBuilder(" -&gt; ");<a name="line.69"></a>
+<span class="sourceLineNo">070</span>    if (templateManager != null) {<a name="line.70"></a>
+<span class="sourceLineNo">071</span>      for (String  t : templateManager.listTemplates()) {<a name="line.71"></a>
+<span class="sourceLineNo">072</span>        b.append(t);<a name="line.72"></a>
+<span class="sourceLineNo">073</span>      }<a name="line.73"></a>
+<span class="sourceLineNo">074</span>      p.tx("Templates: "+b.toString());<a name="line.74"></a>
+<span class="sourceLineNo">075</span>    } else {<a name="line.75"></a>
+<span class="sourceLineNo">076</span>      p.tx("No templates used");<a name="line.76"></a>
+<span class="sourceLineNo">077</span>    }<a name="line.77"></a>
+<span class="sourceLineNo">078</span>    <a name="line.78"></a>
+<span class="sourceLineNo">079</span>    return p;<a name="line.79"></a>
+<span class="sourceLineNo">080</span>  }<a name="line.80"></a>
+<span class="sourceLineNo">081</span><a name="line.81"></a>
+<span class="sourceLineNo">082</span>  private String determineRealmForIg(String packageId) {<a name="line.82"></a>
+<span class="sourceLineNo">083</span>    if (packageId.startsWith("hl7.")) {<a name="line.83"></a>
+<span class="sourceLineNo">084</span>      String[] p = packageId.split("\\.");<a name="line.84"></a>
+<span class="sourceLineNo">085</span>      if (p.length &gt; 2 &amp;&amp; "fhir".equals(p[1])) {<a name="line.85"></a>
+<span class="sourceLineNo">086</span>        if (Utilities.existsInList(p[2], "us", "au", "ch", "be", "nl", "fr", "de") ) {<a name="line.86"></a>
+<span class="sourceLineNo">087</span>          return p[2];<a name="line.87"></a>
+<span class="sourceLineNo">088</span>        }<a name="line.88"></a>
+<span class="sourceLineNo">089</span>        return "uv";<a name="line.89"></a>
+<span class="sourceLineNo">090</span>      }<a name="line.90"></a>
+<span class="sourceLineNo">091</span>    }<a name="line.91"></a>
+<span class="sourceLineNo">092</span>    return null;<a name="line.92"></a>
+<span class="sourceLineNo">093</span>  }<a name="line.93"></a>
+<span class="sourceLineNo">094</span><a name="line.94"></a>
+<span class="sourceLineNo">095</span>  private void addPackageRow(HierarchicalTableGenerator gen, List&lt;Row&gt; rows, NpmPackage npm, String originalVersion, String realm) throws FHIRException, IOException {<a name="line.95"></a>
+<span class="sourceLineNo">096</span>    if (!npm.isCore()) {<a name="line.96"></a>
+<span class="sourceLineNo">097</span>      String idv = npm.name()+"#"+npm.version();<a name="line.97"></a>
+<span class="sourceLineNo">098</span>      boolean isNew = !ids.contains(idv);<a name="line.98"></a>
+<span class="sourceLineNo">099</span>      ids.add(idv);<a name="line.99"></a>
+<span class="sourceLineNo">100</span>      String comment = "";<a name="line.100"></a>
+<span class="sourceLineNo">101</span>      if (!isNew) {<a name="line.101"></a>
+<span class="sourceLineNo">102</span>        comment = "see above";<a name="line.102"></a>
+<span class="sourceLineNo">103</span>      } else if (!VersionUtilities.versionsCompatible(fver, npm.fhirVersion())) {<a name="line.103"></a>
+<span class="sourceLineNo">104</span>        comment = "FHIR Version Mismatch";<a name="line.104"></a>
+<span class="sourceLineNo">105</span>      } else if ("current".equals(npm.version())) {<a name="line.105"></a>
+<span class="sourceLineNo">106</span>        comment = "Cannot be published with a dependency on a current build version";<a name="line.106"></a>
+<span class="sourceLineNo">107</span>      } else if (!npm.version().equals(originalVersion)) {<a name="line.107"></a>
+<span class="sourceLineNo">108</span>        comment = "Matched to latest patch release";<a name="line.108"></a>
+<span class="sourceLineNo">109</span>      } else if (realm != null) {<a name="line.109"></a>
+<span class="sourceLineNo">110</span>        String drealm = determineRealmForIg(npm.name());<a name="line.110"></a>
+<span class="sourceLineNo">111</span>        if (drealm != null) {<a name="line.111"></a>
+<span class="sourceLineNo">112</span>          if ("uv".equals(realm)) {<a name="line.112"></a>
+<span class="sourceLineNo">113</span>            if (!"uv".equals(drealm)) {<a name="line.113"></a>
+<span class="sourceLineNo">114</span>              comment = "An international realm (uv) publication cannot depend on a realm specific guide ("+drealm+")";<a name="line.114"></a>
+<span class="sourceLineNo">115</span>            }<a name="line.115"></a>
+<span class="sourceLineNo">116</span>          } else if (!"uv".equals(drealm) &amp;&amp; !realm.equals(drealm)) {<a name="line.116"></a>
+<span class="sourceLineNo">117</span>            comment = "An realm publication for "+realm+" should not depend on a realm specific guide from ("+drealm+")";<a name="line.117"></a>
+<span class="sourceLineNo">118</span>          }<a name="line.118"></a>
+<span class="sourceLineNo">119</span>        }<a name="line.119"></a>
+<span class="sourceLineNo">120</span>      }<a name="line.120"></a>
+<span class="sourceLineNo">121</span>      Row row = addRow(gen, rows, npm.name(), npm.version(), "current".equals(npm.version()), npm.fhirVersion(), !VersionUtilities.versionsCompatible(fver, npm.fhirVersion()), npm.canonical(), PackageHacker.fixPackageUrl(npm.getWebLocation()), comment);<a name="line.121"></a>
+<span class="sourceLineNo">122</span>      if (isNew) {<a name="line.122"></a>
+<span class="sourceLineNo">123</span>        for (String d : npm.dependencies()) {<a name="line.123"></a>
+<span class="sourceLineNo">124</span>          String id = d.substring(0, d.indexOf("#"));<a name="line.124"></a>
+<span class="sourceLineNo">125</span>          String version = d.substring(d.indexOf("#")+1);<a name="line.125"></a>
+<span class="sourceLineNo">126</span>          try {<a name="line.126"></a>
+<span class="sourceLineNo">127</span>            NpmPackage p = resolve(id, version);<a name="line.127"></a>
+<span class="sourceLineNo">128</span>            addPackageRow(gen, row.getSubRows(), p, d.substring(d.indexOf("#")+1), realm);<a name="line.128"></a>
+<span class="sourceLineNo">129</span>          } catch (Exception e) {<a name="line.129"></a>
+<span class="sourceLineNo">130</span>            addErrorRow(gen, row.getSubRows(), id, version, null, null, e.getMessage());<a name="line.130"></a>
+<span class="sourceLineNo">131</span>          }<a name="line.131"></a>
+<span class="sourceLineNo">132</span>        }<a name="line.132"></a>
+<span class="sourceLineNo">133</span>      }<a name="line.133"></a>
+<span class="sourceLineNo">134</span>    }<a name="line.134"></a>
+<span class="sourceLineNo">135</span>  }<a name="line.135"></a>
+<span class="sourceLineNo">136</span><a name="line.136"></a>
+<span class="sourceLineNo">137</span>  private NpmPackage resolve(ImplementationGuideDependsOnComponent d) throws FHIRException, IOException {<a name="line.137"></a>
+<span class="sourceLineNo">138</span>    if (d.hasPackageId()) {<a name="line.138"></a>
+<span class="sourceLineNo">139</span>      return resolve(d.getPackageId(), d.getVersion());<a name="line.139"></a>
+<span class="sourceLineNo">140</span>    }<a name="line.140"></a>
+<span class="sourceLineNo">141</span>    String pid = pcm.getPackageId(d.getUri());<a name="line.141"></a>
+<span class="sourceLineNo">142</span>    if (pid == null) {<a name="line.142"></a>
+<span class="sourceLineNo">143</span>      throw new FHIRException("Unable to resolve canonical URL to package Id");<a name="line.143"></a>
+<span class="sourceLineNo">144</span>    }<a name="line.144"></a>
+<span class="sourceLineNo">145</span>    return resolve(pid, d.getVersion());<a name="line.145"></a>
+<span class="sourceLineNo">146</span>  }<a name="line.146"></a>
+<span class="sourceLineNo">147</span><a name="line.147"></a>
+<span class="sourceLineNo">148</span>  private NpmPackage resolve(String id, String version) throws FHIRException, IOException {<a name="line.148"></a>
+<span class="sourceLineNo">149</span>    if (VersionUtilities.isCorePackage(id)) {<a name="line.149"></a>
+<span class="sourceLineNo">150</span>      version = VersionUtilities.getCurrentVersion(version);<a name="line.150"></a>
+<span class="sourceLineNo">151</span>      return pcm.loadPackage(id, version);      <a name="line.151"></a>
+<span class="sourceLineNo">152</span>    } else {<a name="line.152"></a>
+<span class="sourceLineNo">153</span>      return pcm.loadPackage(id, version);<a name="line.153"></a>
+<span class="sourceLineNo">154</span>    }<a name="line.154"></a>
+<span class="sourceLineNo">155</span>  }<a name="line.155"></a>
+<span class="sourceLineNo">156</span><a name="line.156"></a>
+<span class="sourceLineNo">157</span>  private Row addBaseRow(HierarchicalTableGenerator gen, TableModel model, ImplementationGuide ig) {<a name="line.157"></a>
+<span class="sourceLineNo">158</span>    String id = ig.getPackageId();<a name="line.158"></a>
+<span class="sourceLineNo">159</span>    String ver = ig.getVersion();<a name="line.159"></a>
+<span class="sourceLineNo">160</span>    String fver = ig.getFhirVersion().get(0).asStringValue();<a name="line.160"></a>
+<span class="sourceLineNo">161</span>    this.fver = fver;<a name="line.161"></a>
+<span class="sourceLineNo">162</span>    String canonical = ig.getUrl();<a name="line.162"></a>
+<span class="sourceLineNo">163</span>    String web = ig.getManifest().getRendering();<a name="line.163"></a>
+<span class="sourceLineNo">164</span>    if (canonical.contains("/ImplementationGuide/")) {<a name="line.164"></a>
+<span class="sourceLineNo">165</span>      canonical = canonical.substring(0, canonical.indexOf("/ImplementationGuide/"));<a name="line.165"></a>
+<span class="sourceLineNo">166</span>    }<a name="line.166"></a>
+<span class="sourceLineNo">167</span>    String comment = null;<a name="line.167"></a>
+<span class="sourceLineNo">168</span>    if (!id.equals(npmName)) {<a name="line.168"></a>
+<span class="sourceLineNo">169</span>      comment = "Expected Package Id is "+npmName;<a name="line.169"></a>
+<span class="sourceLineNo">170</span>    } else if (id.startsWith("hl7") &amp;&amp; !id.startsWith("hl7.fhir.")) {<a name="line.170"></a>
+<span class="sourceLineNo">171</span>      comment = "HL7 Packages must have an id that starts with hl7.fhir.";<a name="line.171"></a>
+<span class="sourceLineNo">172</span>    }<a name="line.172"></a>
+<span class="sourceLineNo">173</span>    Row row = addRow(gen, model.getRows(), id, ver, false, fver, false, canonical, web, comment);<a name="line.173"></a>
+<span class="sourceLineNo">174</span>    if (comment != null) {<a name="line.174"></a>
+<span class="sourceLineNo">175</span>      row.getCells().get(5).addStyle("background-color: #ffcccc");<a name="line.175"></a>
+<span class="sourceLineNo">176</span>    }<a name="line.176"></a>
+<span class="sourceLineNo">177</span>    return row;<a name="line.177"></a>
+<span class="sourceLineNo">178</span>  }<a name="line.178"></a>
+<span class="sourceLineNo">179</span><a name="line.179"></a>
+<span class="sourceLineNo">180</span>  private Row addRow(HierarchicalTableGenerator gen, List&lt;Row&gt; rows, String id, String ver, boolean verError, String fver, boolean fverError, String canonical, String web, String problems) {<a name="line.180"></a>
+<span class="sourceLineNo">181</span>    Row row = gen.new Row();<a name="line.181"></a>
+<span class="sourceLineNo">182</span>    rows.add(row);<a name="line.182"></a>
+<span class="sourceLineNo">183</span>    row.setIcon("icon-fhir-16.png", "NPM Package");<a name="line.183"></a>
+<span class="sourceLineNo">184</span>    row.getCells().add(gen.new Cell(null, null, id, null, null));<a name="line.184"></a>
+<span class="sourceLineNo">185</span>    row.getCells().add(gen.new Cell(null, null, ver, null, null));<a name="line.185"></a>
+<span class="sourceLineNo">186</span>    row.getCells().add(gen.new Cell(null, null, fver, null, null));<a name="line.186"></a>
+<span class="sourceLineNo">187</span>    row.getCells().add(gen.new Cell(null, null, canonical, null, null));<a name="line.187"></a>
+<span class="sourceLineNo">188</span>    row.getCells().add(gen.new Cell(null, null, web, null, null));<a name="line.188"></a>
+<span class="sourceLineNo">189</span>    row.getCells().add(gen.new Cell(null, null, problems, null, null));<a name="line.189"></a>
+<span class="sourceLineNo">190</span>    if (verError) {<a name="line.190"></a>
+<span class="sourceLineNo">191</span>      row.getCells().get(1).addStyle("background-color: #ffcccc");<a name="line.191"></a>
+<span class="sourceLineNo">192</span>    }<a name="line.192"></a>
+<span class="sourceLineNo">193</span>    if (fverError) {<a name="line.193"></a>
+<span class="sourceLineNo">194</span>      row.getCells().get(2).addStyle("background-color: #ffcccc");<a name="line.194"></a>
+<span class="sourceLineNo">195</span>    }<a name="line.195"></a>
+<span class="sourceLineNo">196</span><a name="line.196"></a>
+<span class="sourceLineNo">197</span>    return row;<a name="line.197"></a>
+<span class="sourceLineNo">198</span>  }<a name="line.198"></a>
+<span class="sourceLineNo">199</span><a name="line.199"></a>
+<span class="sourceLineNo">200</span>  private void addErrorRow(HierarchicalTableGenerator gen, List&lt;Row&gt; rows, String id, String ver, String uri, String web, String message) {<a name="line.200"></a>
+<span class="sourceLineNo">201</span>    Row row = gen.new Row();<a name="line.201"></a>
+<span class="sourceLineNo">202</span>    rows.add(row);<a name="line.202"></a>
+<span class="sourceLineNo">203</span>    row.setIcon("icon-fhir-16.png", "NPM Package");<a name="line.203"></a>
+<span class="sourceLineNo">204</span>    row.getCells().add(gen.new Cell(null, null, id, null, null));<a name="line.204"></a>
+<span class="sourceLineNo">205</span>    row.getCells().add(gen.new Cell(null, null, ver, null, null));<a name="line.205"></a>
+<span class="sourceLineNo">206</span>    row.getCells().add(gen.new Cell(null, null, null, null, null));<a name="line.206"></a>
+<span class="sourceLineNo">207</span>    row.getCells().add(gen.new Cell(null, null, uri, null, null));<a name="line.207"></a>
+<span class="sourceLineNo">208</span>    row.getCells().add(gen.new Cell(null, null, web, null, null));<a name="line.208"></a>
+<span class="sourceLineNo">209</span>    row.getCells().add(gen.new Cell(null, null, message, null, null));<a name="line.209"></a>
+<span class="sourceLineNo">210</span>    row.setColor("#ffcccc");<a name="line.210"></a>
+<span class="sourceLineNo">211</span>  }<a name="line.211"></a>
+<span class="sourceLineNo">212</span><a name="line.212"></a>
+<span class="sourceLineNo">213</span>  private TableModel createTable(HierarchicalTableGenerator gen) {<a name="line.213"></a>
+<span class="sourceLineNo">214</span>    TableModel model = gen.new TableModel("dep", false);<a name="line.214"></a>
+<span class="sourceLineNo">215</span>    <a name="line.215"></a>
+<span class="sourceLineNo">216</span>    model.setAlternating(true);<a name="line.216"></a>
+<span class="sourceLineNo">217</span>    model.getTitles().add(gen.new Title(null, null, "Package", "The NPM Package Id", null, 0));<a name="line.217"></a>
+<span class="sourceLineNo">218</span>    model.getTitles().add(gen.new Title(null, null, "Version", "The version of the package", null, 0));<a name="line.218"></a>
+<span class="sourceLineNo">219</span>    model.getTitles().add(gen.new Title(null, null, "FHIR Release", "The version of FHIR that the package is based on", null, 0));<a name="line.219"></a>
+<span class="sourceLineNo">220</span>    model.getTitles().add(gen.new Title(null, null, "Canonical", "Canonical URL", null, 0));<a name="line.220"></a>
+<span class="sourceLineNo">221</span>    model.getTitles().add(gen.new Title(null, null, "Web Base", "Web Reference Base", null, 0));<a name="line.221"></a>
+<span class="sourceLineNo">222</span>    model.getTitles().add(gen.new Title(null, null, "Comment", "Comments about this entry", null, 0));<a name="line.222"></a>
+<span class="sourceLineNo">223</span>    return model;<a name="line.223"></a>
+<span class="sourceLineNo">224</span>  }<a name="line.224"></a>
+<span class="sourceLineNo">225</span>}<a name="line.225"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>
